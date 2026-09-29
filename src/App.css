@@ -1685,39 +1685,208 @@
   background: #b91c1c;
 }
 
+/* Floating Action Button (FAB) for Mobile */
+.mobile-fab {
+  display: none;
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  right: 20px;
+  z-index: 999;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary-gradient);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 13px 20px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.5), 0 4px 6px -2px rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.mobile-fab:hover,
+.mobile-fab:active {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 30px -4px rgba(16, 185, 129, 0.6);
+}
+
+.fab-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-drag-handle {
+  display: none;
+}
+
 /* ==========================================================================
-   6. Responsive Breakpoints
+   6. Responsive Breakpoints & Mobile Pixel-Perfect Optimization
    ========================================================================== */
 
 @media (max-width: 1024px) {
   .charts-grid {
     grid-template-columns: 1fr;
+    gap: 18px;
   }
 }
 
 @media (max-width: 768px) {
-  .header-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
+  .mobile-fab {
+    display: inline-flex;
   }
 
-  .filter-bar {
-    justify-content: space-between;
-    width: 100%;
+  .main-content {
+    padding: 14px 14px calc(95px + env(safe-area-inset-bottom, 0px));
+    gap: 18px;
+  }
+
+  /* Header Mobile Optimization */
+  .header-container {
+    padding: 0;
+  }
+
+  .header-inner {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .header-brand {
+    gap: 10px;
+  }
+
+  .brand-icon-wrapper {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .brand-title {
+    font-size: 1.15rem;
+  }
+
+  .brand-subtitle {
+    display: none;
   }
 
   .header-actions {
-    justify-content: space-between;
-    width: 100%;
+    gap: 8px;
   }
 
   .header-actions .btn-primary {
-    flex: 1;
+    display: none; /* Accessible via Floating Action Button on mobile */
   }
 
+  .filter-bar {
+    width: 100%;
+    justify-content: space-between;
+    padding: 4px 6px;
+    overflow-x: auto;
+  }
+
+  .date-selector-group {
+    flex: 1;
+    justify-content: space-between;
+  }
+
+  .month-select {
+    min-width: 120px;
+    font-size: 0.82rem;
+    padding-left: 28px;
+    padding-right: 22px;
+  }
+
+  .year-select {
+    font-size: 0.82rem;
+    padding-right: 20px;
+  }
+
+  .select-icon {
+    left: 8px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .btn-today-pill {
+    padding: 4px 8px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  /* KPI Grid Mobile */
   .kpi-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .kpi-card {
+    padding: 16px 16px;
+  }
+
+  .kpi-value {
+    font-size: 1.5rem;
+  }
+
+  /* Charts Mobile */
+  .chart-card {
+    padding: 18px 16px;
+  }
+
+  .chart-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .chart-card-title {
+    font-size: 1rem;
+  }
+
+  .doughnut-canvas-container {
+    height: 180px;
+  }
+
+  /* History & Transactions Mobile */
+  .history-header-card {
+    padding: 16px 14px;
+    gap: 12px;
+  }
+
+  .history-title {
+    font-size: 1.1rem;
+  }
+
+  .history-toolbar {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-input-wrapper {
+    min-width: 100%;
+  }
+
+  .search-input {
+    font-size: 16px; /* Prevents auto-zoom in iOS Safari */
+    padding: 11px 36px 11px 36px;
+  }
+
+  .sort-select {
+    width: 100%;
+    font-size: 16px;
+    padding: 10px 32px 10px 34px;
+  }
+
+  .category-filter-chips-row {
+    padding-bottom: 6px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .category-filter-chips-row::-webkit-scrollbar {
+    display: none;
   }
 
   .table-responsive {
@@ -1726,14 +1895,150 @@
 
   .transactions-mobile-list {
     display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .mobile-transaction-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .mobile-cat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+
+  .mobile-desc {
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .mobile-amount {
+    font-size: 0.95rem;
+    font-weight: 800;
+  }
+
+  .action-btn {
+    width: 36px;
+    height: 36px; /* Larger touch target for mobile fingers */
+  }
+
+  /* Modal Bottom Sheet Mobile */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-content {
+    border-radius: 24px 24px 0 0;
+    width: 100%;
+    max-height: 90vh;
+    padding: 12px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .modal-drag-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: #cbd5e1;
+    border-radius: 2px;
+    margin: 4px auto 14px;
+  }
+
+  .modal-header {
+    margin-bottom: 16px;
+  }
+
+  .modal-title {
+    font-size: 1.15rem;
+  }
+
+  .amount-input-wrapper {
+    padding: 4px 14px;
+  }
+
+  .amount-input {
+    font-size: 1.6rem;
+  }
+
+  .category-chips-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .category-chip-btn {
+    padding: 8px 10px;
+    font-size: 0.8rem;
   }
 
   .form-row-2col {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
-  .modal-content {
-    padding: 20px;
+  .form-text-input,
+  .select-styled {
+    font-size: 16px; /* Prevents auto zoom */
+  }
+
+  .modal-actions {
+    margin-top: 14px;
+  }
+
+  .btn-submit-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 13px 20px;
+    font-size: 0.95rem;
+  }
+
+  .btn-cancel {
+    display: none; /* Modal is closed via X or dragging down */
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .card-primary-highlight {
+    grid-column: span 2;
+  }
+
+  .kpi-card {
+    padding: 14px 12px;
+  }
+
+  .kpi-label {
+    font-size: 0.82rem;
+  }
+
+  .kpi-value {
+    font-size: 1.25rem;
+  }
+
+  .kpi-subtext {
+    font-size: 0.72rem;
+  }
+
+  .kpi-icon-pill {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .kpi-icon-pill svg {
+    width: 16px;
+    height: 16px;
   }
 }
 

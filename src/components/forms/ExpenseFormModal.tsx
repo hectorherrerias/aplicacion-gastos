@@ -152,6 +152,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         className="modal-content animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Mobile Drag Indicator */}
+        <div className="modal-drag-handle" />
+
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-header-info">
