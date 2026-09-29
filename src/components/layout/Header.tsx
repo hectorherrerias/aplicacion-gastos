@@ -14,6 +14,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  X,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
 import { useAuth } from '../../context/AuthContext';
@@ -246,95 +247,113 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
             </button>
 
             {showOptionsDropdown && (
-              <div className="dropdown-menu animate-slide-up">
-                <div className="dropdown-header">Ajustes y Datos</div>
+              <div className="dropdown-wrapper">
+                <div className="dropdown-backdrop" onClick={() => setShowOptionsDropdown(false)} />
+                <div className="dropdown-menu animate-slide-up">
+                  <div className="dropdown-header-row">
+                    <span className="dropdown-header">Ajustes y Datos</span>
+                    <button
+                      className="dropdown-close-btn"
+                      onClick={() => setShowOptionsDropdown(false)}
+                      aria-label="Cerrar ajustes"
+                      type="button"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
 
-                <button onClick={onOpenBudgetModal} className="dropdown-item">
-                  <Sliders size={16} className="item-icon" />
-                  <span>Definir Presupuesto Mensual</span>
-                </button>
+                  <button
+                    onClick={() => {
+                      onOpenBudgetModal();
+                      setShowOptionsDropdown(false);
+                    }}
+                    className="dropdown-item"
+                  >
+                    <Sliders size={16} className="item-icon" />
+                    <span>Definir Presupuesto Mensual</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    toggleTheme();
-                    setShowOptionsDropdown(false);
-                  }}
-                  className="dropdown-item"
-                >
-                  {theme === 'dark' ? (
-                    <>
-                      <Sun size={16} className="item-icon" color="#f59e0b" />
-                      <span>Modo Claro</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon size={16} className="item-icon" />
-                      <span>Modo Oscuro</span>
-                    </>
+                  <button
+                    onClick={() => {
+                      toggleTheme();
+                    }}
+                    className="dropdown-item"
+                  >
+                    {theme === 'dark' ? (
+                      <>
+                        <Sun size={16} className="item-icon" color="#f59e0b" />
+                        <span>Modo Claro</span>
+                      </>
+                    ) : (
+                      <>
+                        <Moon size={16} className="item-icon" />
+                        <span>Modo Oscuro</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="dropdown-divider" />
+
+                  <button onClick={handleExportCSV} className="dropdown-item">
+                    <Download size={16} className="item-icon" />
+                    <span>Exportar a Excel / CSV</span>
+                  </button>
+
+                  <button onClick={handleExportJSON} className="dropdown-item">
+                    <Database size={16} className="item-icon" />
+                    <span>Copia de seguridad (JSON)</span>
+                  </button>
+
+                  <button onClick={handleResetDemo} className="dropdown-item">
+                    <Check size={16} className="item-icon" />
+                    <span>Cargar Datos de Ejemplo</span>
+                  </button>
+
+                  <button onClick={handleClearAll} className="dropdown-item" style={{ color: '#ef4444' }}>
+                    <Trash2 size={16} className="item-icon" style={{ color: '#ef4444' }} />
+                    <span>Vaciar Todos los Gastos</span>
+                  </button>
+
+                  <div className="dropdown-divider" />
+                  <div className="currency-selector-row">
+                    <span className="currency-label">Moneda:</span>
+                    <div className="currency-buttons">
+                      {['EUR', 'USD', 'GBP', 'MXN'].map((cur) => (
+                        <button
+                          key={cur}
+                          onClick={() => setCurrency(cur)}
+                          className={`currency-chip ${currency === cur ? 'active' : ''}`}
+                        >
+                          {cur === 'EUR' ? '€' : cur === 'USD' ? '$' : cur === 'GBP' ? '£' : '$M'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="dropdown-divider" />
+
+                  {user && (
+                    <div className="dropdown-user-info" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      Conectado como: <strong style={{ color: 'var(--text-primary)' }}>{user.username}</strong>
+                    </div>
                   )}
-                </button>
 
-                <div className="dropdown-divider" />
-
-                <button onClick={handleExportCSV} className="dropdown-item">
-                  <Download size={16} className="item-icon" />
-                  <span>Exportar a Excel / CSV</span>
-                </button>
-
-                <button onClick={handleExportJSON} className="dropdown-item">
-                  <Database size={16} className="item-icon" />
-                  <span>Copia de seguridad (JSON)</span>
-                </button>
-
-                <button onClick={handleResetDemo} className="dropdown-item">
-                  <Check size={16} className="item-icon" />
-                  <span>Cargar Datos de Ejemplo</span>
-                </button>
-
-                <button onClick={handleClearAll} className="dropdown-item" style={{ color: '#dc2626' }}>
-                  <Trash2 size={16} className="item-icon" style={{ color: '#dc2626' }} />
-                  <span>Vaciar Todos los Gastos</span>
-                </button>
-
-                <div className="dropdown-divider" />
-                <div className="currency-selector-row">
-                  <span className="currency-label">Moneda:</span>
-                  <div className="currency-buttons">
-                    {['EUR', 'USD', 'GBP', 'MXN'].map((cur) => (
-                      <button
-                        key={cur}
-                        onClick={() => setCurrency(cur)}
-                        className={`currency-chip ${currency === cur ? 'active' : ''}`}
-                      >
-                        {cur === 'EUR' ? '€' : cur === 'USD' ? '$' : cur === 'GBP' ? '£' : '$M'}
-                      </button>
-                    ))}
-                  </div>
+                  <button
+                    onClick={() => {
+                      logout();
+                      showToast({
+                        title: 'Sesión cerrada',
+                        message: 'Has cerrado sesión con éxito.',
+                        type: 'info',
+                      });
+                    }}
+                    className="dropdown-item"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    <LogOut size={16} className="item-icon" />
+                    <span>Cerrar Sesión</span>
+                  </button>
                 </div>
-
-                <div className="dropdown-divider" />
-
-                {user && (
-                  <div className="dropdown-user-info" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Conectado como: <strong style={{ color: 'var(--text-primary)' }}>{user.username}</strong>
-                  </div>
-                )}
-
-                <button
-                  onClick={() => {
-                    logout();
-                    showToast({
-                      title: 'Sesión cerrada',
-                      message: 'Has cerrado sesión con éxito.',
-                      type: 'info',
-                    });
-                  }}
-                  className="dropdown-item"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <LogOut size={16} className="item-icon" />
-                  <span>Cerrar Sesión</span>
-                </button>
               </div>
             )}
           </div>

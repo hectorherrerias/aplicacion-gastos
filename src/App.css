@@ -249,17 +249,33 @@
   position: relative;
 }
 
+.dropdown-wrapper {
+  position: static;
+}
+
+.dropdown-backdrop {
+  display: none;
+}
+
 .dropdown-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--shadow-hover);
-  min-width: 260px;
-  padding: 8px;
+  min-width: 280px;
+  max-width: calc(100vw - 32px);
+  padding: 10px;
   z-index: 200;
+}
+
+.dropdown-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 6px;
 }
 
 .dropdown-header {
@@ -268,7 +284,23 @@
   text-transform: uppercase;
   color: var(--text-light);
   letter-spacing: 0.05em;
-  padding: 8px 12px 4px;
+}
+
+.dropdown-close-btn {
+  display: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: var(--bg-muted);
+  transition: all var(--transition-fast);
+}
+
+.dropdown-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .dropdown-item {
@@ -1779,6 +1811,52 @@
 
   .header-actions .btn-primary {
     display: none; /* Accessible via Floating Action Button on mobile */
+  }
+
+  /* Centered Mobile Popup for Settings Dropdown */
+  .dropdown-wrapper {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .dropdown-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+  }
+
+  .dropdown-menu {
+    position: relative;
+    top: auto;
+    right: auto;
+    left: auto;
+    z-index: 1001;
+    width: 100%;
+    max-width: 360px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 20px;
+    padding: 16px 14px;
+    box-shadow: var(--shadow-modal);
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+  }
+
+  .dropdown-close-btn {
+    display: flex;
+  }
+
+  .dropdown-item {
+    padding: 11px 14px;
+    font-size: 0.92rem;
   }
 
   .filter-bar {
