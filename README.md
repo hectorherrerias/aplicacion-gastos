@@ -1,72 +1,114 @@
-# GastosPro — Gestor de Gastos Personales & Dashboard Fintech
+# GastosPro — Gestor de Gastos Personales (Self-Hosted SQLite + Docker)
 
-Aplicación web moderna, minimalista y profesional para el control inteligente, análisis gráfico y gestión de gastos personales, desarrollada con **React**, **TypeScript**, **Vite** y **Chart.js**.
-
-![GastosPro Dashboard](https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80)
+Aplicación web Full-Stack moderna, minimalista y profesional para el control inteligente, análisis gráfico y gestión de gastos personales. Diseñada específicamente para ser **auto-alojada (Self-Hosted)** en tu propio servidor local o contenedor **Proxmox LXC** con **SQLite** y **Docker**.
 
 ---
 
-## ✨ Características Principales
+## 🌟 Arquitectura y Ventajas de SQLite
 
-- **Tarjetas de Resumen (KPIs)**:
-  - Total gastado en el mes con comparativa respecto al mes anterior.
-  - Categoría predominante de gasto con porcentaje e importe.
-  - Total anual acumulado y media mensual estimada.
-  - Gasto diario promedio y conteo de transacciones.
-  - Barra de progreso del objetivo de presupuesto mensual con avisos visuales.
-
-- **Visualización Gráfica Interactiva**:
-  - **Gráfico Donut**: Distribución porcentual por categorías para el mes seleccionado, con desglose detallado interactivo.
-  - **Gráfico de Evolución Anual**: Seguimiento mes a mes (Enero a Diciembre) con opción de alternar entre vista de **Barras** y **Línea de tendencia**, resaltando el mes activo.
-  - **Filtro Global de Mes y Año**: Selector dinámico en la cabecera que sincroniza todas las métricas en tiempo real.
-
-- **Formulario de Ingreso Rápido**:
-  - Selector de importe con atajos rápidos (+5€, +10€, +20€, +50€, +100€).
-  - Selector de categoría visual por chips (*Vivienda*, *Alimentación*, *Transporte*, *Ocio*, *Salud*, *Educación*, *Otros*).
-  - Presets de fecha ("Hoy" y "Ayer").
-  - Comentario y método de pago (*Tarjeta*, *Efectivo*, *Bizum*, *Transferencia*).
-  - Feedback visual inmediato y animación de confeti.
-
-- **Historial de Movimientos**:
-  - Búsqueda en tiempo real por texto (descripción, importe o categoría).
-  - Filtrado rápido por categoría.
-  - Ordenación personalizada (Más reciente, Mayor/Menor importe, Alfabético).
-  - Botón para editar cualquier gasto y botón para eliminar con confirmación y acción inmediata de **"Deshacer"**.
-
-- **Almacenamiento y Exportación**:
-  - Persistencia total y automática en `localStorage`.
-  - Exportación a archivo **CSV** (con formato UTF-8 BOM compatible con Microsoft Excel y Numbers).
-  - Copia de seguridad en archivo **JSON**.
-  - Opciones para vaciar gastos o cargar datos de muestra.
+- **Base de datos automática**: No requiere instalar ni configurar servidores de bases de datos externos (como MySQL o PostgreSQL).
+- **Auto-inicialización en el arranque**: El servidor Express detecta automáticamente si existe el archivo `data/database.sqlite`. Si no existe, lo crea al vuelo y ejecuta las migraciones (`CREATE TABLE IF NOT EXISTS users, expenses, settings`).
+- **Usuario administrador pre-configurado**: Crea un usuario administrador seguro con contraseña hash (`bcrypt`) en el primer inicio.
+- **Persistencia garantizada**: Todos los datos se guardan en un único archivo SQLite mapeado a un volumen Docker local (`./data:/app/data`), asegurando que ninguna actualización de contenedor borre tus registros.
 
 ---
 
-## 🚀 Instalación y Uso Local
+## 🔒 Autenticación & Seguridad
 
+- **Pantalla de Login Fintech**: Protegida con autenticación mediante **JWT (JSON Web Tokens)**.
+- **Credenciales por defecto**:
+  - **Usuario**: `admin`
+  - **Contraseña**: `admin123`
+  *(Personalizables en el archivo `.env` o variables de entorno de Docker).*
+- **Cierre de sesión y protección de API**: Todos los endpoints de gastos están protegidos con middleware de autorización.
+
+---
+
+## 🐳 Despliegue con Docker & Docker Compose (Recomendado para Proxmox LXC)
+
+### Paso 1: Clonar el repositorio
 ```bash
-# 1. Clonar el repositorio
 git clone https://github.com/hectorherrerias/aplicacion-gastos.git
-
-# 2. Entrar en la carpeta
 cd aplicacion-gastos
-
-# 3. Instalar dependencias
-npm install
-
-# 4. Iniciar el servidor de desarrollo
-npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173) en tu navegador para ver la aplicación.
+### Paso 2: Configurar variables de entorno (Opcional)
+Puedes copiar `.env.example` a `.env` y cambiar tu usuario o contraseña:
+```bash
+cp .env.example .env
+```
+
+### Paso 3: Levantar todo con un solo comando
+```bash
+docker compose up -d --build
+```
+
+¡Listo! La aplicación estará disponible de inmediato en:
+👉 **`http://<IP-DE-TU-SERVIDOR-O-LXC>:3000`**
+
+Para detener la aplicación:
+```bash
+docker compose down
+```
 
 ---
 
-## 🛠️ Tecnologías
+## 🖥️ Despliegue Manual con Node.js (Sin Docker)
 
-- **React 19**
-- **TypeScript**
-- **Vite**
-- **Chart.js** & **react-chartjs-2**
-- **Lucide Icons**
-- **Canvas-Confetti**
-- **CSS3 Design Tokens** (Glassmorphism & Responsive layout)
+Si prefieres ejecutarla directamente en el contenedor LXC con Node.js instalado (Node 20+):
+
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Compilar frontend para producción
+npm run build
+
+# 3. Iniciar el servidor SQLite
+npm start
+```
+Accede a **`http://localhost:3000`**.
+
+---
+
+## 💻 Desarrollo Local (Frontend Vite + Backend Express)
+
+Para trabajar en local con hot-reload tanto en el frontend como en el backend:
+
+```bash
+npm run dev
+```
+- **Frontend (Vite)**: `http://localhost:5173` (con proxy automático hacia `/api`)
+- **Backend API (Express + SQLite)**: `http://localhost:3000`
+
+---
+
+## ✨ Funcionalidades del Dashboard
+
+- **KPIs en tiempo real**:
+  - Total gastado en el mes y comparativa vs mes anterior.
+  - Categoría con mayor gasto (porcentaje e importe).
+  - Total anual acumulado y media mensual.
+  - Gasto diario promedio y conteo de movimientos.
+  - Barra de presupuesto mensual objetivo con avisos de color.
+- **Gráficos interactivos**:
+  - **Gráfico Donut**: Distribución de gastos por categoría del periodo seleccionado con leyenda interactiva.
+  - **Gráfico de Evolución Anual**: 12 meses (Enero a Diciembre) con selector de vista de **Barras** y **Línea**.
+- **Formulario de Ingreso Rápido**:
+  - Importe con atajos (+5€, +10€, +20€, +50€, +100€).
+  - Categorías visuales (*Vivienda*, *Alimentación*, *Transporte*, *Ocio*, *Salud*, *Educación*, *Otros*).
+  - Selector de fecha con atajos "Hoy" y "Ayer".
+  - Métodos de pago (*Tarjeta*, *Efectivo*, *Bizum*, *Transferencia*).
+- **Historial de Movimientos**:
+  - Búsqueda en tiempo real, filtro por categoría y ordenación.
+  - Edición y borrado directo en SQLite con confirmación y acción **"Deshacer"**.
+  - Exportación a **CSV (Excel)** y **JSON**.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+- **Backend**: Node.js, Express, `better-sqlite3`, JWT, BcryptJS, TypeScript (`tsx`).
+- **Base de Datos**: SQLite (`data/database.sqlite` con WAL mode).
+- **Frontend**: React 19, TypeScript, Vite, Chart.js (`react-chartjs-2`), Lucide Icons.
+- **Contenedores**: Docker (Multi-stage build) & Docker Compose.

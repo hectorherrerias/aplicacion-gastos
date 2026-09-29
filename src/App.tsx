@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExpenseProvider } from './context/ExpenseContext';
 import { ToastProvider } from './components/ui/Toast';
 import { Header } from './components/layout/Header';
@@ -7,6 +8,7 @@ import { ChartsSection } from './components/charts/ChartsSection';
 import { TransactionHistory } from './components/history/TransactionHistory';
 import { ExpenseFormModal } from './components/forms/ExpenseFormModal';
 import { BudgetModal } from './components/modals/BudgetModal';
+import { LoginPage } from './components/auth/LoginPage';
 import type { Expense } from './types/expense';
 import './App.css';
 
@@ -74,12 +76,53 @@ const MainDashboard: React.FC = () => {
   );
 };
 
+const AppContent: React.FC = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f8fafc',
+        gap: '16px',
+        color: '#64748b',
+        fontFamily: "'Plus Jakarta Sans', sans-serif"
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid #e2e8f0',
+          borderTopColor: '#059669',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <p style={{ fontWeight: 600, fontSize: '0.92rem' }}>Cargando GastosPro...</p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return (
+    <ExpenseProvider>
+      <MainDashboard />
+    </ExpenseProvider>
+  );
+};
+
 export default function App() {
   return (
     <ToastProvider>
-      <ExpenseProvider>
-        <MainDashboard />
-      </ExpenseProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ToastProvider>
   );
 }

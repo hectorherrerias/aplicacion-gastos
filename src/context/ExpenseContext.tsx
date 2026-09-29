@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import type {
   Expense,
   FilterState,
@@ -9,10 +9,8 @@ import type {
 } from '../types/expense';
 import { CATEGORIES, CATEGORY_MAP, MONTH_NAMES_ES } from '../constants/categories';
 import { generateSampleExpenses } from '../constants/initialData';
-
-const STORAGE_KEY = 'gastospro_expenses_data_v1';
-const BUDGET_STORAGE_KEY = 'gastospro_budget_v1';
-const CURRENCY_STORAGE_KEY = 'gastospro_currency_v1';
+import { api } from '../services/api';
+import { useAuth } from './AuthContext';
 
 interface ExpenseContextType {
   expenses: Expense[];
@@ -20,100 +18,94 @@ interface ExpenseContextType {
   filters: FilterState;
   setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
   updateFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
-  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Expense;
-  editExpense: (id: string, updated: Partial<Expense>) => void;
-  deleteExpense: (id: string) => Expense | undefined;
-  restoreExpense: (expense: Expense) => void;
-  resetToSampleData: () => void;
-  clearAllExpenses: () => void;
-  importExpenses: (imported: Expense[]) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<Expense>;
+  editExpense: (id: string, updated: Partial<Expense>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<Expense | undefined>;
+  restoreExpense: (expense: Expense) => Promise<void>;
+  resetToSampleData: () => Promise<void>;
+  clearAllExpenses: () => Promise<void>;
+  importExpenses: (imported: Expense[]) => Promise<void>;
   budgetMonthly: number;
-  setBudgetMonthly: (amount: number) => void;
+  setBudgetMonthly: (amount: number) => Promise<void>;
   currency: string;
-  setCurrency: (c: string) => void;
+  setCurrency: (c: string) => Promise<void>;
   kpiMetrics: KpiMetrics;
   categoryBreakdown: CategoryBreakdown[];
   monthlySummary: MonthSummary[];
   availableYears: number[];
+  isLoadingData: boolean;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
 export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
 
-  // 1. Load initial expenses from localStorage or default to empty list
-  const [expenses, setExpenses] = useState<Expense[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.error('Error loading expenses from localStorage', e);
-    }
-    return [];
-  });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [budgetMonthly, setBudgetMonthlyState] = useState<number>(2000);
+  const [currency, setCurrencyState] = useState<string>('EUR');
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
-  // 2. Budget monthly goal
-  const [budgetMonthly, setBudgetMonthlyState] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem(BUDGET_STORAGE_KEY);
-      if (saved) return Number(saved) || 2000;
-    } catch (e) {
-      console.error(e);
-    }
-    return 2000;
-  });
-
-  // 3. Currency
-  const [currency, setCurrencyState] = useState<string>(() => {
-    try {
-      return localStorage.getItem(CURRENCY_STORAGE_KEY) || 'EUR';
-    } catch {
-      return 'EUR';
-    }
-  });
-
-  // 4. Global Filter State
+  // Global Filter State
   const [filters, setFilters] = useState<FilterState>({
     selectedYear: currentYear,
-    selectedMonth: currentMonth, // 0-11, or -1 for all year
+    selectedMonth: currentMonth,
     selectedCategory: 'all',
     searchQuery: '',
     sortBy: 'date',
     sortOrder: 'desc',
   });
 
-  // Save to localStorage when expenses change
-  useEffect(() => {
+  // Load expenses and settings from SQLite backend when authenticated
+  const loadData = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingData(true);
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-    } catch (e) {
-      console.error('Failed to save to localStorage', e);
-    }
-  }, [expenses]);
+      // 1. Fetch expenses
+      const fetchedExpenses = await api.expenses.getAll();
+      setExpenses(fetchedExpenses || []);
 
-  const setBudgetMonthly = (amount: number) => {
+      // 2. Fetch settings
+      const settings = await api.settings.getAll();
+      if (settings.budget_monthly) {
+        setBudgetMonthlyState(parseFloat(settings.budget_monthly) || 2000);
+      }
+      if (settings.currency) {
+        setCurrencyState(settings.currency);
+      }
+    } catch (error) {
+      console.error('[ExpenseContext] Error loading data from SQLite backend:', error);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadData();
+    } else {
+      setExpenses([]);
+    }
+  }, [isAuthenticated, loadData]);
+
+  const setBudgetMonthly = async (amount: number) => {
     setBudgetMonthlyState(amount);
     try {
-      localStorage.setItem(BUDGET_STORAGE_KEY, amount.toString());
+      await api.settings.set('budget_monthly', amount.toString());
     } catch (e) {
-      console.error(e);
+      console.error('Failed to save budget in SQLite', e);
     }
   };
 
-  const setCurrency = (c: string) => {
+  const setCurrency = async (c: string) => {
     setCurrencyState(c);
     try {
-      localStorage.setItem(CURRENCY_STORAGE_KEY, c);
+      await api.settings.set('currency', c);
     } catch (e) {
-      console.error(e);
+      console.error('Failed to save currency in SQLite', e);
     }
   };
 
@@ -121,41 +113,76 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'createdAt'>): Expense => {
-    const newExpense: Expense = {
-      ...expenseData,
-      id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-      createdAt: Date.now(),
-    };
-    setExpenses((prev) => [newExpense, ...prev]);
-    return newExpense;
-  };
-
-  const editExpense = (id: string, updated: Partial<Expense>) => {
-    setExpenses((prev) =>
-      prev.map((exp) => (exp.id === id ? { ...exp, ...updated } : exp))
-    );
-  };
-
-  const deleteExpense = (id: string): Expense | undefined => {
-    const target = expenses.find((e) => e.id === id);
-    if (target) {
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
+  const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> => {
+    try {
+      const created = await api.expenses.create(expenseData);
+      setExpenses((prev) => [created, ...prev]);
+      return created;
+    } catch (error) {
+      console.error('Error creating expense in SQLite:', error);
+      // Fallback local creation
+      const localExp: Expense = {
+        ...expenseData,
+        id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        createdAt: Date.now(),
+      };
+      setExpenses((prev) => [localExp, ...prev]);
+      return localExp;
     }
-    return target;
   };
 
-  const restoreExpense = (expense: Expense) => {
-    setExpenses((prev) => {
-      // Avoid duplicate
-      if (prev.some((e) => e.id === expense.id)) return prev;
-      return [expense, ...prev];
-    });
+  const editExpense = async (id: string, updated: Partial<Expense>) => {
+    try {
+      const saved = await api.expenses.update(id, updated);
+      setExpenses((prev) => prev.map((exp) => (exp.id === id ? saved : exp)));
+    } catch (error) {
+      console.error('Error updating expense in SQLite:', error);
+      setExpenses((prev) => prev.map((exp) => (exp.id === id ? { ...exp, ...updated } : exp)));
+    }
   };
 
-  const resetToSampleData = () => {
+  const deleteExpense = async (id: string): Promise<Expense | undefined> => {
+    const target = expenses.find((e) => e.id === id);
+    if (!target) return undefined;
+
+    try {
+      await api.expenses.delete(id);
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      return target;
+    } catch (error) {
+      console.error('Error deleting expense in SQLite:', error);
+      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      return target;
+    }
+  };
+
+  const restoreExpense = async (expense: Expense) => {
+    try {
+      await api.expenses.create({
+        amount: expense.amount,
+        date: expense.date,
+        categoryId: expense.categoryId,
+        description: expense.description,
+        paymentMethod: expense.paymentMethod,
+      });
+      setExpenses((prev) => [expense, ...prev]);
+    } catch (error) {
+      console.error('Error restoring expense in SQLite:', error);
+      setExpenses((prev) => [expense, ...prev]);
+    }
+  };
+
+  const resetToSampleData = async () => {
     const samples = generateSampleExpenses();
-    setExpenses(samples);
+    try {
+      await api.expenses.clearAll();
+      await api.expenses.importMany(samples);
+      setExpenses(samples);
+    } catch (error) {
+      console.error('Error loading sample data:', error);
+      setExpenses(samples);
+    }
+
     setFilters((prev) => ({
       ...prev,
       selectedYear: currentYear,
@@ -165,13 +192,24 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
-  const clearAllExpenses = () => {
+  const clearAllExpenses = async () => {
+    try {
+      await api.expenses.clearAll();
+    } catch (error) {
+      console.error('Error clearing expenses in SQLite:', error);
+    }
     setExpenses([]);
   };
 
-  const importExpenses = (imported: Expense[]) => {
+  const importExpenses = async (imported: Expense[]) => {
     if (Array.isArray(imported)) {
-      setExpenses(imported);
+      try {
+        await api.expenses.importMany(imported);
+        setExpenses(imported);
+      } catch (error) {
+        console.error('Error importing expenses:', error);
+        setExpenses(imported);
+      }
     }
   };
 
@@ -187,37 +225,25 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return Array.from(yearsSet).sort((a, b) => b - a);
   }, [expenses, currentYear]);
 
-  // Derived: Filtered & Sorted expenses for the history list/table
+  // Derived: Filtered & Sorted expenses
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
       if (!exp.date) return false;
       const [yearStr, monthStr] = exp.date.split('-');
       const expYear = parseInt(yearStr, 10);
-      const expMonth = parseInt(monthStr, 10) - 1; // 0-11
+      const expMonth = parseInt(monthStr, 10) - 1;
 
-      // Year filter
       if (expYear !== filters.selectedYear) return false;
+      if (filters.selectedMonth !== -1 && expMonth !== filters.selectedMonth) return false;
+      if (filters.selectedCategory !== 'all' && exp.categoryId !== filters.selectedCategory) return false;
 
-      // Month filter (if not -1 for all year)
-      if (filters.selectedMonth !== -1 && expMonth !== filters.selectedMonth) {
-        return false;
-      }
-
-      // Category filter
-      if (filters.selectedCategory !== 'all' && exp.categoryId !== filters.selectedCategory) {
-        return false;
-      }
-
-      // Search Query filter
       if (filters.searchQuery.trim() !== '') {
         const query = filters.searchQuery.toLowerCase().trim();
         const descMatch = exp.description?.toLowerCase().includes(query);
         const catInfo = CATEGORY_MAP[exp.categoryId];
         const catMatch = catInfo?.name.toLowerCase().includes(query);
         const amountMatch = exp.amount.toString().includes(query);
-        if (!descMatch && !catMatch && !amountMatch) {
-          return false;
-        }
+        if (!descMatch && !catMatch && !amountMatch) return false;
       }
 
       return true;
@@ -240,7 +266,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [expenses, filters]);
 
-  // Derived: Monthly Summary for 12 months of the selected year (for Bar/Line Chart)
+  // Derived: Monthly Summary for 12 months
   const monthlySummary = useMemo<MonthSummary[]>(() => {
     const summaries: MonthSummary[] = Array.from({ length: 12 }, (_, i) => ({
       monthIndex: i,
@@ -265,7 +291,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return summaries;
   }, [expenses, filters.selectedYear]);
 
-  // Derived: Category Breakdown for selected month or year (for Donut Chart & top category)
+  // Derived: Category Breakdown
   const categoryBreakdown = useMemo<CategoryBreakdown[]>(() => {
     const targetExpenses = expenses.filter((exp) => {
       if (!exp.date) return false;
@@ -307,7 +333,6 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
     }).filter((item) => item.total > 0 || filters.selectedMonth === -1);
 
-    // Sort descending by total amount
     return breakdown.sort((a, b) => b.total - a.total);
   }, [expenses, filters.selectedYear, filters.selectedMonth]);
 
@@ -316,12 +341,10 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const selYear = filters.selectedYear;
     const selMonth = filters.selectedMonth;
 
-    // 1. Current selection total
     let currentPeriodExpenses: Expense[] = [];
     let prevPeriodExpenses: Expense[] = [];
 
     if (selMonth === -1) {
-      // Entire Year
       currentPeriodExpenses = expenses.filter((e) => {
         const [y] = e.date.split('-');
         return parseInt(y, 10) === selYear;
@@ -331,7 +354,6 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return parseInt(y, 10) === selYear - 1;
       });
     } else {
-      // Specific Month
       currentPeriodExpenses = expenses.filter((e) => {
         const [y, m] = e.date.split('-');
         return parseInt(y, 10) === selYear && parseInt(m, 10) - 1 === selMonth;
@@ -355,20 +377,16 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
     }
 
-    // Yearly total for selectedYear
     const yearlyExpenses = expenses.filter((e) => {
       const [y] = e.date.split('-');
       return parseInt(y, 10) === selYear;
     });
     const yearlyTotal = yearlyExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Active days count for daily average
     const daysInMonth = selMonth === -1 ? 365 : new Date(selYear, selMonth + 1, 0).getDate();
     const dailyAverage = daysInMonth > 0 ? currentMonthTotal / daysInMonth : 0;
     const monthlyAverage = yearlyTotal / 12;
-
     const topCat = categoryBreakdown.length > 0 && categoryBreakdown[0].total > 0 ? categoryBreakdown[0] : null;
-
     const budgetUsedPercentage = budgetMonthly > 0 ? Math.min(100, (currentMonthTotal / budgetMonthly) * 100) : 0;
 
     return {
@@ -408,6 +426,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         categoryBreakdown,
         monthlySummary,
         availableYears,
+        isLoadingData,
       }}
     >
       {children}

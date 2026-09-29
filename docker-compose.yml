@@ -1,0 +1,20 @@
+services:
+  gastospro:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gastospro-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - JWT_SECRET=gastospro_secure_jwt_token_secret_key_2026
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=admin123
+      - DATA_DIR=/app/data
+      - DATABASE_FILE=/app/data/database.sqlite
+    volumes:
+      # Persistent SQLite storage in local folder
+      - ./data:/app/data

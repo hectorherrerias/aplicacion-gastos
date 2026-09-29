@@ -47,9 +47,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
     setExpenseToDelete(expense);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!expenseToDelete) return;
-    const deleted = deleteExpense(expenseToDelete.id);
+    const target = expenseToDelete;
+    setExpenseToDelete(null);
+    const deleted = await deleteExpense(target.id);
     if (deleted) {
       showToast({
         title: 'Gasto eliminado',
@@ -58,8 +60,8 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         duration: 6000,
         action: {
           label: 'Deshacer',
-          onClick: () => {
-            restoreExpense(deleted);
+          onClick: async () => {
+            await restoreExpense(deleted);
             showToast({
               title: 'Gasto restaurado',
               type: 'success',
@@ -68,7 +70,6 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         },
       });
     }
-    setExpenseToDelete(null);
   };
 
   const handleExportCurrentView = () => {

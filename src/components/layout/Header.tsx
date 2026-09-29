@@ -11,8 +11,10 @@ import {
   Check,
   ChevronDown,
   Trash2,
+  LogOut,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
+import { useAuth } from '../../context/AuthContext';
 import { MONTH_NAMES_ES } from '../../constants/categories';
 import { downloadCSV, downloadJSON } from '../../utils/formatters';
 import { useToast } from '../ui/Toast';
@@ -33,6 +35,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
     currency,
     setCurrency,
   } = useExpenseContext();
+
+  const { user, logout } = useAuth();
 
   const { showToast } = useToast();
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
@@ -273,6 +277,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
                     ))}
                   </div>
                 </div>
+
+                <div className="dropdown-divider" />
+
+                {user && (
+                  <div className="dropdown-user-info" style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
+                    Conectado como: <strong style={{ color: '#0f172a' }}>{user.username}</strong>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    logout();
+                    showToast({
+                      title: 'Sesión cerrada',
+                      message: 'Has cerrado sesión con éxito.',
+                      type: 'info',
+                    });
+                  }}
+                  className="dropdown-item"
+                  style={{ color: '#475569' }}
+                >
+                  <LogOut size={16} className="item-icon" />
+                  <span>Cerrar Sesión</span>
+                </button>
               </div>
             )}
           </div>
