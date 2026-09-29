@@ -1,0 +1,377 @@
+import React, { useState } from 'react';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Filler,
+} from 'chart.js';
+import type { TooltipItem } from 'chart.js';
+import { Doughnut, Bar, Line } from 'react-chartjs-2';
+import {
+  PieChart as PieIcon,
+  BarChart3,
+  TrendingUp,
+  Calendar,
+} from 'lucide-react';
+import { useExpenseContext } from '../../context/ExpenseContext';
+import { formatCurrency, formatNumber } from '../../utils/formatters';
+import { CategoryIcon } from '../ui/CategoryIcon';
+import { MONTH_NAMES_ES, MONTH_SHORT_ES } from '../../constants/categories';
+
+// Register ChartJS modules
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Filler
+);
+
+export const ChartsSection: React.FC = () => {
+  const {
+    categoryBreakdown,
+    monthlySummary,
+    filters,
+    updateFilter,
+    currency,
+    kpiMetrics,
+  } = useExpenseContext();
+
+  const [annualChartType, setAnnualChartType] = useState<'bar' | 'line'>('bar');
+  const isAllYear = filters.selectedMonth === -1;
+  const currentPeriodName = isAllYear ? `Año ${filters.selectedYear}` : `${MONTH_NAMES_ES[filters.selectedMonth]} ${filters.selectedYear}`;
+
+  const hasCategoryData = categoryBreakdown.some((c) => c.total > 0);
+  const hasYearlyData = monthlySummary.some((m) => m.total > 0);
+
+  // 1. Doughnut Chart Configuration
+  const doughnutData = {
+    labels: categoryBreakdown.map((item) => item.category.name),
+    datasets: [
+      {
+        data: categoryBreakdown.map((item) => item.total),
+        backgroundColor: categoryBreakdown.map((item) => item.category.color),
+        borderColor: '#ffffff',
+        borderWidth: 2.5,
+        hoverOffset: 8,
+        hoverBorderColor: '#ffffff',
+      },
+    ],
+  };
+
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '72%',
+    plugins: {
+      legend: {
+        display: false, // We render a custom high-end interactive legend list
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' as const },
+        bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+        padding: 12,
+        cornerRadius: 10,
+        boxPadding: 6,
+        usePointStyle: true,
+        callbacks: {
+          label: function (context: TooltipItem<'doughnut'>) {
+            const raw = context.raw as number;
+            const total = kpiMetrics.currentMonthTotal;
+            const percentage = total > 0 ? ((raw / total) * 100).toFixed(1) : '0';
+            return ` ${formatCurrency(raw, currency)} (${percentage}%)`;
+          },
+        },
+      },
+    },
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      duration: 750,
+    },
+  };
+
+  // 2. Bar / Line Chart Configuration (12 months)
+  const barColors = monthlySummary.map((m) =>
+    !isAllYear && m.monthIndex === filters.selectedMonth
+      ? '#059669' // Active month highlight
+      : '#93c5fd' // Default soft blue
+  );
+
+  const barHoverColors = monthlySummary.map((m) =>
+    !isAllYear && m.monthIndex === filters.selectedMonth
+      ? '#047857'
+      : '#3b82f6'
+  );
+
+  const yearlyChartData = {
+    labels: MONTH_SHORT_ES,
+    datasets: [
+      annualChartType === 'bar'
+        ? {
+            label: 'Gasto mensual',
+            data: monthlySummary.map((m) => m.total),
+            backgroundColor: barColors,
+            hoverBackgroundColor: barHoverColors,
+            borderRadius: 8,
+            borderSkipped: false,
+            maxBarThickness: 38,
+          }
+        : {
+            label: 'Evolución mensual',
+            data: monthlySummary.map((m) => m.total),
+            borderColor: '#059669',
+            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            fill: true,
+            tension: 0.35,
+            pointBackgroundColor: '#059669',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 8,
+          },
+    ],
+  };
+
+  const yearlyChartOptions: any = {
+    responsive: true,
+    maintainAspectRatio: false,
+    onClick: (_: any, elements: any[]) => {
+      if (elements.length > 0) {
+        const clickedIndex = elements[0].index;
+        updateFilter('selectedMonth', clickedIndex);
+      }
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: '#0f172a',
+        titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' as const },
+        bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
+        padding: 12,
+        cornerRadius: 10,
+        callbacks: {
+          title: function (items: any[]) {
+            if (!items.length) return '';
+            const idx = items[0].dataIndex;
+            return `${MONTH_NAMES_ES[idx]} ${filters.selectedYear}`;
+          },
+          label: function (context: any) {
+            const raw = context.raw as number;
+            const idx = context.dataIndex;
+            const count = monthlySummary[idx]?.count || 0;
+            return [
+              ` Gasto total: ${formatCurrency(raw, currency)}`,
+              ` Movimientos: ${count} transacciones`,
+            ];
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          font: { family: 'Plus Jakarta Sans', size: 12 },
+          color: '#64748b',
+        },
+      },
+      y: {
+        border: {
+          dash: [4, 4],
+        },
+        grid: {
+          color: '#f1f5f9',
+        },
+        ticks: {
+          font: { family: 'Plus Jakarta Sans', size: 11 },
+          color: '#94a3b8',
+          callback: function (val: any) {
+            return `${formatNumber(val, 0)} ${currency === 'EUR' ? '€' : currency}`;
+          },
+        },
+      },
+    },
+  };
+
+  return (
+    <div className="charts-grid">
+      {/* 1. Categorical Distribution (Donut Chart) */}
+      <div className="chart-card">
+        <div className="chart-card-header">
+          <div>
+            <div className="chart-title-badge">
+              <PieIcon size={15} />
+              <span>Distribución por Categorías</span>
+            </div>
+            <h3 className="chart-card-title">Gastos de {currentPeriodName}</h3>
+          </div>
+          <span className="chart-subtitle-tag">{categoryBreakdown.filter(c => c.total > 0).length} categorías activas</span>
+        </div>
+
+        <div className="doughnut-content-wrapper">
+          {hasCategoryData ? (
+            <>
+              <div className="doughnut-canvas-container">
+                <Doughnut data={doughnutData} options={doughnutOptions} />
+                <div className="doughnut-center-metric">
+                  <span className="center-label">Total Periodo</span>
+                  <span className="center-value tabular-nums">
+                    {formatCurrency(kpiMetrics.currentMonthTotal, currency)}
+                  </span>
+                </div>
+              </div>
+
+              {/* High-End Category Breakdown List */}
+              <div className="category-legend-list">
+                {categoryBreakdown.map((item) => {
+                  if (item.total === 0) return null;
+                  return (
+                    <div
+                      key={item.category.id}
+                      className="category-legend-row"
+                      onClick={() =>
+                        updateFilter(
+                          'selectedCategory',
+                          filters.selectedCategory === item.category.id ? 'all' : item.category.id
+                        )
+                      }
+                      title={`Filtrar por ${item.category.name}`}
+                      style={{
+                        cursor: 'pointer',
+                        opacity:
+                          filters.selectedCategory === 'all' ||
+                          filters.selectedCategory === item.category.id
+                            ? 1
+                            : 0.4,
+                      }}
+                    >
+                      <div className="legend-row-left">
+                        <div
+                          className="legend-color-dot"
+                          style={{ backgroundColor: item.category.color }}
+                        />
+                        <div
+                          className="legend-icon-badge"
+                          style={{
+                            backgroundColor: item.category.bgColor,
+                            color: item.category.color,
+                          }}
+                        >
+                          <CategoryIcon categoryId={item.category.id} size={14} />
+                        </div>
+                        <div className="legend-text-col">
+                          <span className="legend-cat-name">{item.category.name}</span>
+                          <div className="legend-mini-bar-track">
+                            <div
+                              className="legend-mini-bar-fill"
+                              style={{
+                                width: `${item.percentage}%`,
+                                backgroundColor: item.category.color,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="legend-row-right">
+                        <span className="legend-amount tabular-nums">
+                          {formatCurrency(item.total, currency)}
+                        </span>
+                        <span className="legend-percentage">{item.percentage}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="chart-empty-state">
+              <div className="empty-icon-circle">
+                <PieIcon size={32} color="#94a3b8" />
+              </div>
+              <h4>Sin gastos registrados en este periodo</h4>
+              <p>Añade un nuevo gasto para visualizar la distribución porcentual.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. Monthly Evolution Throughout the Year (Bar / Line Chart) */}
+      <div className="chart-card">
+        <div className="chart-card-header">
+          <div>
+            <div className="chart-title-badge">
+              <BarChart3 size={15} />
+              <span>Evolución Anual</span>
+            </div>
+            <h3 className="chart-card-title">Gastos Mensuales en {filters.selectedYear}</h3>
+          </div>
+
+          {/* Toggle View: Bar vs Line */}
+          <div className="chart-type-toggle">
+            <button
+              className={`toggle-btn ${annualChartType === 'bar' ? 'active' : ''}`}
+              onClick={() => setAnnualChartType('bar')}
+              title="Vista en barras"
+            >
+              <BarChart3 size={15} />
+              <span>Barras</span>
+            </button>
+            <button
+              className={`toggle-btn ${annualChartType === 'line' ? 'active' : ''}`}
+              onClick={() => setAnnualChartType('line')}
+              title="Vista en línea de tendencia"
+            >
+              <TrendingUp size={15} />
+              <span>Línea</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="yearly-chart-container">
+          {hasYearlyData ? (
+            <>
+              <div style={{ height: '280px', position: 'relative' }}>
+                {annualChartType === 'bar' ? (
+                  <Bar data={yearlyChartData} options={yearlyChartOptions} />
+                ) : (
+                  <Line data={yearlyChartData} options={yearlyChartOptions} />
+                )}
+              </div>
+              <div className="chart-footer-hint">
+                <Calendar size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                <span>Haz clic en cualquier mes para filtrar los datos y movimientos de ese mes</span>
+              </div>
+            </>
+          ) : (
+            <div className="chart-empty-state">
+              <div className="empty-icon-circle">
+                <BarChart3 size={32} color="#94a3b8" />
+              </div>
+              <h4>Sin datos anuales para {filters.selectedYear}</h4>
+              <p>Comienza a registrar gastos para ver la evolución mes a mes.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
