@@ -9,6 +9,7 @@ expensesRouter.use(authMiddleware);
 
 interface ExpenseRow {
   id: string;
+  user_id: string;
   amount: number;
   date: string;
   category_id: string;
@@ -27,12 +28,18 @@ const mapRowToExpense = (row: ExpenseRow) => ({
   createdAt: row.created_at,
 });
 
-// GET /api/expenses - List all expenses
-expensesRouter.get('/', (_req: AuthenticatedRequest, res: Response): void => {
+// GET /api/expenses - List only the logged-in user's expenses
+expensesRouter.get('/', (req: AuthenticatedRequest, res: Response): void => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
+      return;
+    }
+
     const rows = db
-      .prepare('SELECT * FROM expenses ORDER BY date DESC, created_at DESC')
-      .all() as ExpenseRow[];
+      .prepare('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC, created_at DESC')
+      .all(userId) as ExpenseRow[];
 
     const expenses = rows.map(mapRowToExpense);
     res.json({ expenses });
@@ -42,9 +49,15 @@ expensesRouter.get('/', (_req: AuthenticatedRequest, res: Response): void => {
   }
 });
 
-// POST /api/expenses - Create new expense
+// POST /api/expenses - Create new expense for the logged-in user
 expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
+      return;
+    }
+
     const { amount, date, categoryId, description, paymentMethod } = req.body;
 
     const parsedAmount = Number(amount);
@@ -63,9 +76,9 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
     const method = paymentMethod || 'tarjeta';
 
     db.prepare(`
-      INSERT INTO expenses (id, amount, date, category_id, description, payment_method, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(id, parsedAmount, date, categoryId, description.trim(), method, createdAt);
+      INSERT INTO expenses (id, user_id, amount, date, category_id, description, payment_method, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, userId, parsedAmount, date, categoryId, description.trim(), method, createdAt);
 
     const createdExpense = {
       id,
@@ -84,15 +97,24 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
   }
 });
 
-// PUT /api/expenses/:id - Update existing expense
+// PUT /api/expenses/:id - Update existing expense of the logged-in user
 expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
+      return;
+    }
+
     const { id } = req.params;
     const { amount, date, categoryId, description, paymentMethod } = req.body;
 
-    const existing = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id) as ExpenseRow | undefined;
+    const existing = db
+      .prepare('SELECT * FROM expenses WHERE id = ? AND user_id = ?')
+      .get(id, userId) as ExpenseRow | undefined;
+
     if (!existing) {
-      res.status(404).json({ error: 'Gasto no encontrado.' });
+      res.status(404).json({ error: 'Gasto no encontrado o no pertenece a tu cuenta.' });
       return;
     }
 
@@ -105,8 +127,8 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
     db.prepare(`
       UPDATE expenses
       SET amount = ?, date = ?, category_id = ?, description = ?, payment_method = ?
-      WHERE id = ?
-    `).run(parsedAmount, newDate, newCategory, newDesc, newMethod, id);
+      WHERE id = ? AND user_id = ?
+    `).run(parsedAmount, newDate, newCategory, newDesc, newMethod, id, userId);
 
     const updated = {
       id,
@@ -125,18 +147,26 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
   }
 });
 
-// DELETE /api/expenses/:id - Delete an expense
+// DELETE /api/expenses/:id - Delete an expense belonging to the logged-in user
 expensesRouter.delete('/:id', (req: AuthenticatedRequest, res: Response): void => {
   try {
-    const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id) as ExpenseRow | undefined;
-    
-    if (!existing) {
-      res.status(404).json({ error: 'Gasto no encontrado.' });
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
       return;
     }
 
-    db.prepare('DELETE FROM expenses WHERE id = ?').run(id);
+    const { id } = req.params;
+    const existing = db
+      .prepare('SELECT * FROM expenses WHERE id = ? AND user_id = ?')
+      .get(id, userId) as ExpenseRow | undefined;
+    
+    if (!existing) {
+      res.status(404).json({ error: 'Gasto no encontrado o no pertenece a tu cuenta.' });
+      return;
+    }
+
+    db.prepare('DELETE FROM expenses WHERE id = ? AND user_id = ?').run(id, userId);
 
     res.json({
       message: 'Gasto eliminado correctamente de SQLite.',
@@ -148,20 +178,32 @@ expensesRouter.delete('/:id', (req: AuthenticatedRequest, res: Response): void =
   }
 });
 
-// POST /api/expenses/clear - Clear all expenses
-expensesRouter.post('/clear', (_req: AuthenticatedRequest, res: Response): void => {
+// POST /api/expenses/clear - Clear all expenses of the logged-in user
+expensesRouter.post('/clear', (req: AuthenticatedRequest, res: Response): void => {
   try {
-    db.prepare('DELETE FROM expenses').run();
-    res.json({ message: 'Todos los gastos han sido eliminados de SQLite.' });
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
+      return;
+    }
+
+    db.prepare('DELETE FROM expenses WHERE user_id = ?').run(userId);
+    res.json({ message: 'Todos tus gastos han sido eliminados de SQLite.' });
   } catch (error) {
     console.error('[Expenses API Error]', error);
     res.status(500).json({ error: 'Error al vaciar la tabla de gastos.' });
   }
 });
 
-// POST /api/expenses/import - Bulk import
+// POST /api/expenses/import - Bulk import for the logged-in user
 expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ error: 'No autorizado' });
+      return;
+    }
+
     const { expenses } = req.body;
     if (!Array.isArray(expenses)) {
       res.status(400).json({ error: 'El formato de datos debe ser un array de gastos.' });
@@ -169,8 +211,8 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
     }
 
     const insertStmt = db.prepare(`
-      INSERT OR REPLACE INTO expenses (id, amount, date, category_id, description, payment_method, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO expenses (id, user_id, amount, date, category_id, description, payment_method, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMany = db.transaction((items: any[]) => {
@@ -184,14 +226,14 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
         const createdAt = exp.createdAt || exp.created_at || Date.now();
 
         if (amount > 0 && date && description) {
-          insertStmt.run(id, amount, date, categoryId, description, paymentMethod, createdAt);
+          insertStmt.run(id, userId, amount, date, categoryId, description, paymentMethod, createdAt);
         }
       }
     });
 
     insertMany(expenses);
 
-    res.json({ message: `${expenses.length} gastos importados en SQLite.` });
+    res.json({ message: `${expenses.length} gastos importados en tu cuenta de SQLite.` });
   } catch (error) {
     console.error('[Expenses API Error]', error);
     res.status(500).json({ error: 'Error al importar gastos.' });

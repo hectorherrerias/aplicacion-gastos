@@ -27,6 +27,17 @@ export const api = {
       return data as { token: string; user: { id: string; username: string; name: string } };
     },
 
+    register: async (username: string, password: string, name?: string) => {
+      const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al registrar usuario');
+      return data as { token: string; user: { id: string; username: string; name: string } };
+    },
+
     me: async () => {
       const res = await fetch(`${API_BASE_URL}/auth/me`, {
         method: 'GET',

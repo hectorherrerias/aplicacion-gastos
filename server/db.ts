@@ -31,10 +31,11 @@ export const initDatabase = () => {
     );
   `);
 
-  // 2. Expenses table
+  // 2. Expenses table (with user_id for multi-user data isolation)
   db.exec(`
     CREATE TABLE IF NOT EXISTS expenses (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
       amount REAL NOT NULL,
       date TEXT NOT NULL,
       category_id TEXT NOT NULL,
@@ -42,15 +43,34 @@ export const initDatabase = () => {
       payment_method TEXT DEFAULT 'tarjeta',
       created_at INTEGER NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
-    CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category_id);
   `);
 
-  // 3. Settings table (Budget, Currency, etc.)
+  // Auto-migration: check if user_id column exists in existing expenses table
+  try {
+    const tableInfo = db.prepare("PRAGMA table_info('expenses')").all() as Array<{ name: string }>;
+    const hasUserId = tableInfo.some((col) => col.name === 'user_id');
+    if (!hasUserId) {
+      console.log('[Database] Migrating expenses table: adding user_id column...');
+      db.exec("ALTER TABLE expenses ADD COLUMN user_id TEXT DEFAULT 'usr-admin-default';");
+    }
+  } catch (err) {
+    console.error('[Database Migration Error]', err);
+  }
+
+  // Create indexes for fast multi-user querying
   db.exec(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
+    CREATE INDEX IF NOT EXISTS idx_expenses_user ON expenses(user_id);
+    CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
+    CREATE INDEX IF NOT EXISTS idx_expenses_user_cat ON expenses(user_id, category_id);
+  `);
+
+  // 3. User Settings table (User-specific budget, currency, etc.)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT NOT NULL,
+      PRIMARY KEY (user_id, key)
     );
   `);
 
@@ -61,31 +81,25 @@ export const initDatabase = () => {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync(adminPassword, salt);
+    const adminId = 'usr-admin-default';
 
     db.prepare(`
       INSERT INTO users (id, username, password_hash, name, created_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(
-      'usr-admin-default',
+      adminId,
       adminUser,
       passwordHash,
       'Administrador',
       Date.now()
     );
 
-    console.log(`[Database] Seeded default administrator user: "${adminUser}"`);
+    // Seed default settings for admin
+    db.prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(adminId, 'budget_monthly', '2000');
+    db.prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(adminId, 'currency', 'EUR');
+
+    console.log(`[Database] Seeded initial administrator account: "${adminUser}"`);
   }
 
-  // Seed default settings if empty
-  const budgetSetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('budget_monthly');
-  if (!budgetSetting) {
-    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('budget_monthly', '2000');
-  }
-
-  const currencySetting = db.prepare('SELECT value FROM settings WHERE key = ?').get('currency');
-  if (!currencySetting) {
-    db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('currency', 'EUR');
-  }
-
-  console.log('[Database] SQLite schema verified and ready.');
+  console.log('[Database] SQLite multi-user schema verified and ready.');
 };

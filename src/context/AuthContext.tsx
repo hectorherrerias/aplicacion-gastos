@@ -13,6 +13,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, name?: string) => Promise<void>;
   logout: () => void;
   changePassword: (currentPass: string, newPass: string) => Promise<void>;
 }
@@ -58,6 +59,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(data.user);
   };
 
+  const register = async (username: string, password: string, name?: string) => {
+    const data = await api.auth.register(username, password, name);
+    localStorage.setItem('gastospro_jwt_token', data.token);
+    setToken(data.token);
+    setUser(data.user);
+  };
+
   const logout = () => {
     localStorage.removeItem('gastospro_jwt_token');
     setToken(null);
@@ -76,6 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!token && !!user,
         isLoading,
         login,
+        register,
         logout,
         changePassword,
       }}

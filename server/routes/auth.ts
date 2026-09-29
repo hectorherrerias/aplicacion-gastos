@@ -5,7 +5,76 @@ import { generateToken, authMiddleware, AuthenticatedRequest } from '../auth';
 
 export const authRouter = Router();
 
-// POST /api/auth/login
+// POST /api/auth/register - Create new user account
+authRouter.post('/register', (req: Request, res: Response): void => {
+  try {
+    const { username, password, name } = req.body;
+
+    if (!username || !password) {
+      res.status(400).json({ error: 'Debes indicar un nombre de usuario y una contraseña.' });
+      return;
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanName = (name || cleanUsername).trim();
+
+    if (cleanUsername.length < 3) {
+      res.status(400).json({ error: 'El nombre de usuario debe tener al menos 3 caracteres.' });
+      return;
+    }
+
+    if (password.length < 4) {
+      res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres.' });
+      return;
+    }
+
+    // Check if username already exists
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(cleanUsername);
+    if (existing) {
+      res.status(400).json({ error: 'Ese nombre de usuario ya está registrado. Elige otro.' });
+      return;
+    }
+
+    const userId = `usr-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
+    const createdAt = Date.now();
+
+    // Insert user into SQLite
+    db.prepare(`
+      INSERT INTO users (id, username, password_hash, name, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(userId, cleanUsername, passwordHash, cleanName, createdAt);
+
+    // Initialize user settings with defaults
+    db.prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(
+      userId,
+      'budget_monthly',
+      '2000'
+    );
+    db.prepare('INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)').run(
+      userId,
+      'currency',
+      'EUR'
+    );
+
+    const token = generateToken({ userId, username: cleanUsername });
+
+    res.status(201).json({
+      token,
+      user: {
+        id: userId,
+        username: cleanUsername,
+        name: cleanName,
+      },
+    });
+  } catch (error) {
+    console.error('[Register API Error]', error);
+    res.status(500).json({ error: 'Error al registrar usuario en la base de datos.' });
+  }
+});
+
+// POST /api/auth/login - Authenticate existing user
 authRouter.post('/login', (req: Request, res: Response): void => {
   const { username, password } = req.body;
 
@@ -14,7 +83,9 @@ authRouter.post('/login', (req: Request, res: Response): void => {
     return;
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as {
+  const cleanUsername = username.trim().toLowerCase();
+
+  const user = db.prepare('SELECT * FROM users WHERE LOWER(username) = ?').get(cleanUsername) as {
     id: string;
     username: string;
     password_hash: string;
@@ -44,7 +115,7 @@ authRouter.post('/login', (req: Request, res: Response): void => {
   });
 });
 
-// GET /api/auth/me
+// GET /api/auth/me - Validate session
 authRouter.get('/me', authMiddleware, (req: AuthenticatedRequest, res: Response): void => {
   if (!req.user) {
     res.status(401).json({ error: 'No autenticado.' });
