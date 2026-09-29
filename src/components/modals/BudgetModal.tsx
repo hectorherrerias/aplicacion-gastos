@@ -98,8 +98,8 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({ isOpen, onClose }) => 
           {/* Real-time Preview Status */}
           <div
             style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'var(--bg-card-subtle)',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '14px',
               margin: '18px 0',
@@ -109,18 +109,18 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({ isOpen, onClose }) => 
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <span style={{ color: '#64748b' }}>Gasto actual este mes:</span>
-              <span style={{ fontWeight: 600, color: '#0f172a' }} className="tabular-nums">
+              <span style={{ color: 'var(--text-muted)' }}>Gasto actual este mes:</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }} className="tabular-nums">
                 {formatCurrency(currentSpent, currency)}
               </span>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-              <span style={{ color: '#64748b' }}>Margen disponible:</span>
+              <span style={{ color: 'var(--text-muted)' }}>Margen disponible:</span>
               <span
                 style={{
                   fontWeight: 700,
-                  color: remaining >= 0 ? '#059669' : '#dc2626',
+                  color: remaining >= 0 ? '#10b981' : '#ef4444',
                 }}
                 className="tabular-nums"
               >

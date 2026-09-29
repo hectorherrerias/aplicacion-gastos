@@ -21,6 +21,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
+import { useTheme } from '../../context/ThemeContext';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { MONTH_NAMES_ES, MONTH_SHORT_ES } from '../../constants/categories';
@@ -49,6 +50,9 @@ export const ChartsSection: React.FC = () => {
     kpiMetrics,
   } = useExpenseContext();
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   const [annualChartType, setAnnualChartType] = useState<'bar' | 'line'>('bar');
   const isAllYear = filters.selectedMonth === -1;
   const currentPeriodName = isAllYear ? `Año ${filters.selectedYear}` : `${MONTH_NAMES_ES[filters.selectedMonth]} ${filters.selectedYear}`;
@@ -63,10 +67,10 @@ export const ChartsSection: React.FC = () => {
       {
         data: categoryBreakdown.map((item) => item.total),
         backgroundColor: categoryBreakdown.map((item) => item.category.color),
-        borderColor: '#ffffff',
+        borderColor: isDark ? '#111827' : '#ffffff',
         borderWidth: 2.5,
         hoverOffset: 8,
-        hoverBorderColor: '#ffffff',
+        hoverBorderColor: isDark ? '#111827' : '#ffffff',
       },
     ],
   };
@@ -80,7 +84,11 @@ export const ChartsSection: React.FC = () => {
         display: false, // We render a custom high-end interactive legend list
       },
       tooltip: {
-        backgroundColor: '#0f172a',
+        backgroundColor: isDark ? '#1e293b' : '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        borderColor: isDark ? '#334155' : 'transparent',
+        borderWidth: isDark ? 1 : 0,
         titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' as const },
         bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
         padding: 12,
@@ -107,14 +115,16 @@ export const ChartsSection: React.FC = () => {
   // 2. Bar / Line Chart Configuration (12 months)
   const barColors = monthlySummary.map((m) =>
     !isAllYear && m.monthIndex === filters.selectedMonth
-      ? '#059669' // Active month highlight
-      : '#93c5fd' // Default soft blue
+      ? '#10b981' // Active month highlight (Emerald)
+      : isDark
+      ? '#3b82f6' // Crisp blue in dark mode
+      : '#93c5fd' // Default soft blue in light mode
   );
 
   const barHoverColors = monthlySummary.map((m) =>
     !isAllYear && m.monthIndex === filters.selectedMonth
-      ? '#047857'
-      : '#3b82f6'
+      ? '#059669'
+      : '#2563eb'
   );
 
   const yearlyChartData = {
@@ -133,12 +143,12 @@ export const ChartsSection: React.FC = () => {
         : {
             label: 'Evolución mensual',
             data: monthlySummary.map((m) => m.total),
-            borderColor: '#059669',
-            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+            borderColor: '#10b981',
+            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
             fill: true,
             tension: 0.35,
-            pointBackgroundColor: '#059669',
-            pointBorderColor: '#ffffff',
+            pointBackgroundColor: '#10b981',
+            pointBorderColor: isDark ? '#111827' : '#ffffff',
             pointBorderWidth: 2,
             pointRadius: 5,
             pointHoverRadius: 8,
@@ -160,7 +170,11 @@ export const ChartsSection: React.FC = () => {
         display: false,
       },
       tooltip: {
-        backgroundColor: '#0f172a',
+        backgroundColor: isDark ? '#1e293b' : '#0f172a',
+        titleColor: '#f8fafc',
+        bodyColor: '#e2e8f0',
+        borderColor: isDark ? '#334155' : 'transparent',
+        borderWidth: isDark ? 1 : 0,
         titleFont: { family: 'Plus Jakarta Sans', size: 13, weight: 'bold' as const },
         bodyFont: { family: 'Plus Jakarta Sans', size: 12 },
         padding: 12,
@@ -190,7 +204,7 @@ export const ChartsSection: React.FC = () => {
         },
         ticks: {
           font: { family: 'Plus Jakarta Sans', size: 12 },
-          color: '#64748b',
+          color: isDark ? '#94a3b8' : '#64748b',
         },
       },
       y: {
@@ -198,11 +212,11 @@ export const ChartsSection: React.FC = () => {
           dash: [4, 4],
         },
         grid: {
-          color: '#f1f5f9',
+          color: isDark ? '#1f293d' : '#f1f5f9',
         },
         ticks: {
           font: { family: 'Plus Jakarta Sans', size: 11 },
-          color: '#94a3b8',
+          color: isDark ? '#94a3b8' : '#94a3b8',
           callback: function (val: any) {
             return `${formatNumber(val, 0)} ${currency === 'EUR' ? '€' : currency}`;
           },

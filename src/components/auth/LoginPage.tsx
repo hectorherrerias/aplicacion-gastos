@@ -9,11 +9,15 @@ import {
   Server,
   UserPlus,
   LogIn,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export const LoginPage: React.FC = () => {
   const { login, register } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
   // Form states
@@ -71,7 +75,19 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="login-page-wrapper">
+    <div className="login-page-wrapper" style={{ position: 'relative' }}>
+      {/* Top right theme toggle */}
+      <div style={{ position: 'absolute', top: '20px', right: '20px', zIndex: 10 }}>
+        <button
+          onClick={toggleTheme}
+          className="btn-secondary btn-icon-only"
+          title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          aria-label="Cambiar tema"
+        >
+          {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="login-card animate-slide-up">
         {/* Brand Header */}
         <div className="login-brand-header">

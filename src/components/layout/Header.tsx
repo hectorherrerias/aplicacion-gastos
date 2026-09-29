@@ -12,9 +12,12 @@ import {
   ChevronDown,
   Trash2,
   LogOut,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { MONTH_NAMES_ES } from '../../constants/categories';
 import { downloadCSV, downloadJSON } from '../../utils/formatters';
 import { useToast } from '../ui/Toast';
@@ -37,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
   } = useExpenseContext();
 
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const { showToast } = useToast();
   const [showOptionsDropdown, setShowOptionsDropdown] = useState(false);
@@ -219,6 +223,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
 
         {/* Right CTA Actions */}
         <div className="header-actions">
+          {/* Theme Toggle Button (Light / Dark) */}
+          <button
+            onClick={toggleTheme}
+            className="btn-secondary btn-icon-only theme-toggle-btn"
+            title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            aria-label="Cambiar tema"
+          >
+            {theme === 'dark' ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} />}
+          </button>
+
           {/* Options Dropdown Menu */}
           <div className="dropdown-container" ref={dropdownRef}>
             <button
@@ -238,6 +252,26 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
                 <button onClick={onOpenBudgetModal} className="dropdown-item">
                   <Sliders size={16} className="item-icon" />
                   <span>Definir Presupuesto Mensual</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    toggleTheme();
+                    setShowOptionsDropdown(false);
+                  }}
+                  className="dropdown-item"
+                >
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun size={16} className="item-icon" color="#f59e0b" />
+                      <span>Modo Claro</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon size={16} className="item-icon" />
+                      <span>Modo Oscuro</span>
+                    </>
+                  )}
                 </button>
 
                 <div className="dropdown-divider" />
@@ -281,8 +315,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
                 <div className="dropdown-divider" />
 
                 {user && (
-                  <div className="dropdown-user-info" style={{ padding: '6px 12px', fontSize: '0.8rem', color: '#64748b' }}>
-                    Conectado como: <strong style={{ color: '#0f172a' }}>{user.username}</strong>
+                  <div className="dropdown-user-info" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Conectado como: <strong style={{ color: 'var(--text-primary)' }}>{user.username}</strong>
                   </div>
                 )}
 
@@ -296,7 +330,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
                     });
                   }}
                   className="dropdown-item"
-                  style={{ color: '#475569' }}
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <LogOut size={16} className="item-icon" />
                   <span>Cerrar Sesión</span>

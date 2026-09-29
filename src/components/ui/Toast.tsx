@@ -67,25 +67,25 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '14px 18px',
-                background: '#ffffff',
+                background: 'var(--bg-card)',
                 borderRadius: '14px',
-                boxShadow: '0 10px 25px -3px rgba(15, 23, 42, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.05)',
-                border: `1px solid ${isSuccess ? '#bbf7d0' : isError ? '#fecaca' : '#e2e8f0'}`,
-                borderLeft: `5px solid ${isSuccess ? '#10b981' : isError ? '#ef4444' : '#3b82f6'}`,
+                boxShadow: 'var(--shadow-hover)',
+                border: `1px solid ${isSuccess ? 'var(--primary-200)' : isError ? 'var(--danger-border)' : 'var(--border-color)'}`,
+                borderLeft: `5px solid ${isSuccess ? 'var(--primary-500)' : isError ? 'var(--danger-text)' : 'var(--accent-blue)'}`,
                 gap: '12px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-                {isSuccess && <CheckCircle2 size={20} color="#059669" />}
-                {isError && <AlertCircle size={20} color="#dc2626" />}
-                {!isSuccess && !isError && <Info size={20} color="#2563eb" />}
+                {isSuccess && <CheckCircle2 size={20} color="#10b981" />}
+                {isError && <AlertCircle size={20} color="#ef4444" />}
+                {!isSuccess && !isError && <Info size={20} color="#3b82f6" />}
 
                 <div>
-                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.92rem', color: '#0f172a' }}>
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
                     {toast.title}
                   </p>
                   {toast.message && (
-                    <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                       {toast.message}
                     </p>
                   )}
@@ -103,12 +103,12 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     alignItems: 'center',
                     gap: '4px',
                     padding: '6px 10px',
-                    background: '#ecfdf5',
-                    color: '#059669',
+                    background: 'var(--primary-50)',
+                    color: 'var(--primary-600)',
                     borderRadius: '8px',
                     fontSize: '0.8rem',
                     fontWeight: 600,
-                    border: '1px solid #a7f3d0',
+                    border: '1px solid var(--primary-200)',
                     cursor: 'pointer',
                   }}
                 >

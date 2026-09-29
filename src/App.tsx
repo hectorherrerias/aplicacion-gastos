@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ExpenseProvider } from './context/ExpenseContext';
 import { ToastProvider } from './components/ui/Toast';
@@ -102,15 +103,15 @@ const AppContent: React.FC = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#f8fafc',
+        background: 'var(--bg-app)',
         gap: '16px',
-        color: '#64748b',
+        color: 'var(--text-muted)',
         fontFamily: "'Plus Jakarta Sans', sans-serif"
       }}>
         <div style={{
           width: '40px',
           height: '40px',
-          border: '3px solid #e2e8f0',
+          border: '3px solid var(--border-color)',
           borderTopColor: '#059669',
           borderRadius: '50%',
           animation: 'spin 0.8s linear infinite'
@@ -134,10 +135,12 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <ToastProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
