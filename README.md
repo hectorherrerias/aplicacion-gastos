@@ -85,30 +85,38 @@ npm run dev
 
 ## ✨ Funcionalidades del Dashboard
 
+- **Control de Gastos y Reembolsos / Devoluciones**:
+  - Selector de tipo en formulario: **💸 Gasto** o **🔄 Reembolso / Devolución**.
+  - Cálculo automático de **Gasto Neto** (Gastos brutos menos Devoluciones).
+  - Sugerencias dinámicas según el tipo de movimiento (*Devolución Amazon*, *Bizum de amigos*, *Reembolso viaje*, etc.).
+  - Filtro rápido en el historial: **Todos los movimientos**, **Solo Gastos** o **Solo Reembolsos**.
 - **KPIs en tiempo real**:
-  - Total gastado en el mes y comparativa vs mes anterior.
-  - Categoría con mayor gasto (porcentaje e importe).
-  - Total anual acumulado y media mensual.
-  - Gasto diario promedio y conteo de movimientos.
-  - Barra de presupuesto mensual objetivo con avisos de color.
+  - Gasto Neto mensual/anual con desglose de gastos brutos y devoluciones recuperadas.
+  - Comparativa vs mes anterior.
+  - Categoría con mayor gasto neto e importe de devoluciones asociadas.
+  - Total anual acumulado y media mensual neta.
+  - Tarjeta de actividad y reembolsos del periodo.
+  - Barra de presupuesto mensual objetivo basada en gasto neto real.
 - **Gráficos interactivos**:
-  - **Gráfico Donut**: Distribución de gastos por categoría del periodo seleccionado con leyenda interactiva.
-  - **Gráfico de Evolución Anual**: 12 meses (Enero a Diciembre) con selector de vista de **Barras** y **Línea**.
+  - **Gráfico Donut**: Distribución de gastos netos por categoría del periodo seleccionado con leyenda interactiva y chips de devolución.
+  - **Gráfico de Evolución Anual**: 12 meses (Enero a Diciembre) con comparativa de **Gastos vs Devoluciones** en barras duales y vista de **Línea de Tendencia** de gasto neto.
 - **Formulario de Ingreso Rápido**:
+  - Selector de tipo (*Gasto* o *Reembolso / Devolución*).
   - Importe con atajos (+5€, +10€, +20€, +50€, +100€).
   - Categorías visuales (*Vivienda*, *Alimentación*, *Transporte*, *Ocio*, *Salud*, *Educación*, *Otros*).
   - Selector de fecha con atajos "Hoy" y "Ayer".
   - Métodos de pago (*Tarjeta*, *Efectivo*, *Bizum*, *Transferencia*).
 - **Historial de Movimientos**:
-  - Búsqueda en tiempo real, filtro por categoría y ordenación.
+  - Filtros por tipo (*Todos*, *Gastos*, *Reembolsos*), categoría y búsqueda en tiempo real.
+  - Importes diferenciados con badges claros (rojo/gris para gastos, verde esmeralda con `+` para reembolsos).
   - Edición y borrado directo en SQLite con confirmación y acción **"Deshacer"**.
-  - Exportación a **CSV (Excel)** y **JSON**.
+  - Exportación a **CSV (Excel compatible con tipo)** y **JSON**.
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
 - **Backend**: Node.js, Express, `better-sqlite3`, JWT, BcryptJS, TypeScript (`tsx`).
-- **Base de Datos**: SQLite (`data/database.sqlite` con WAL mode).
-- **Frontend**: React 19, TypeScript, Vite, Chart.js (`react-chartjs-2`), Lucide Icons.
+- **Base de Datos**: SQLite (`data/database.sqlite` con WAL mode y auto-migraciones de schema).
+- **Frontend**: React 19, TypeScript, Vite, Chart.js (`react-chartjs-2`), Lucide Icons, Canvas Confetti.
 - **Contenedores**: Docker (Multi-stage build) & Docker Compose.

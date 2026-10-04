@@ -7,11 +7,13 @@ import {
   CreditCard,
   Sparkles,
   Check,
+  RotateCcw,
+  TrendingDown,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useExpenseContext } from '../../context/ExpenseContext';
 import { CATEGORIES } from '../../constants/categories';
-import type { CategoryId, Expense, PaymentMethod } from '../../types/expense';
+import type { CategoryId, Expense, PaymentMethod, TransactionType } from '../../types/expense';
 import { formatDateForInput } from '../../utils/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { useToast } from '../ui/Toast';
@@ -20,16 +22,19 @@ interface ExpenseFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   expenseToEdit?: Expense | null;
+  defaultType?: TransactionType;
 }
 
 export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   isOpen,
   onClose,
   expenseToEdit,
+  defaultType = 'expense',
 }) => {
   const { addExpense, editExpense, currency } = useExpenseContext();
   const { showToast } = useToast();
 
+  const [type, setType] = useState<TransactionType>(defaultType);
   const [amount, setAmount] = useState<string>('');
   const [date, setDate] = useState<string>(formatDateForInput(new Date()));
   const [categoryId, setCategoryId] = useState<CategoryId>('alimentacion');
@@ -37,8 +42,8 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('tarjeta');
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  // Suggestions for rapid entry
-  const popularDescriptions = [
+  // Dynamic suggestions depending on type
+  const expenseDescriptions = [
     'Supermercado',
     'Restaurante / Comida',
     'Factura Luz / Agua',
@@ -47,8 +52,20 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     'Cine / Salida',
   ];
 
+  const refundDescriptions = [
+    'Devolución Amazon / Tienda',
+    'Bizum de amigo',
+    'Reembolso billete / viaje',
+    'Devolución seguro médico',
+    'Reintegro fianza',
+    'Abono en cuenta',
+  ];
+
+  const currentDescriptions = type === 'refund' ? refundDescriptions : expenseDescriptions;
+
   useEffect(() => {
     if (expenseToEdit) {
+      setType(expenseToEdit.type === 'refund' ? 'refund' : 'expense');
       setAmount(expenseToEdit.amount.toString());
       setDate(expenseToEdit.date);
       setCategoryId(expenseToEdit.categoryId);
@@ -56,14 +73,15 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
       setPaymentMethod(expenseToEdit.paymentMethod || 'tarjeta');
       setErrorMsg('');
     } else {
+      setType(defaultType);
       setAmount('');
       setDate(formatDateForInput(new Date()));
-      setCategoryId('alimentacion');
+      setCategoryId(defaultType === 'refund' ? 'otros' : 'alimentacion');
       setDescription('');
       setPaymentMethod('tarjeta');
       setErrorMsg('');
     }
-  }, [expenseToEdit, isOpen]);
+  }, [expenseToEdit, isOpen, defaultType]);
 
   if (!isOpen) return null;
 
@@ -77,7 +95,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     }
 
     if (!description.trim()) {
-      setErrorMsg('Por favor añade una breve descripción o comentario del gasto.');
+      setErrorMsg(
+        type === 'refund'
+          ? 'Por favor añade un concepto o motivo de la devolución.'
+          : 'Por favor añade una breve descripción o comentario del gasto.'
+      );
       return;
     }
 
@@ -93,10 +115,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         categoryId,
         description: description.trim(),
         paymentMethod,
+        type,
       });
 
       showToast({
-        title: 'Gasto actualizado',
+        title: type === 'refund' ? 'Reembolso actualizado' : 'Gasto actualizado',
         message: `${description.trim()} modificado correctamente.`,
         type: 'success',
       });
@@ -107,23 +130,26 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         categoryId,
         description: description.trim(),
         paymentMethod,
+        type,
       });
 
       // Celebration micro-interaction
       try {
         confetti({
-          particleCount: 40,
-          spread: 60,
+          particleCount: 45,
+          spread: 65,
           origin: { y: 0.8 },
-          colors: ['#10b981', '#059669', '#3b82f6', '#8b5cf6'],
+          colors: type === 'refund'
+            ? ['#10b981', '#34d399', '#059669', '#6ee7b7']
+            : ['#10b981', '#059669', '#3b82f6', '#8b5cf6'],
         });
       } catch (e) {
         // Safe fallback
       }
 
       showToast({
-        title: '¡Gasto registrado con éxito!',
-        message: `${description.trim()} (${parsedAmount.toFixed(2)} ${currency === 'EUR' ? '€' : currency})`,
+        title: type === 'refund' ? '¡Reembolso registrado con éxito!' : '¡Gasto registrado con éxito!',
+        message: `${description.trim()} (${type === 'refund' ? '+' : '-'}${parsedAmount.toFixed(2)} ${currency === 'EUR' ? '€' : currency})`,
         type: 'success',
       });
     }
@@ -158,15 +184,35 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-header-info">
-            <div className="modal-icon-badge">
-              {expenseToEdit ? <FileText size={20} /> : <Sparkles size={20} />}
+            <div
+              className="modal-icon-badge"
+              style={{
+                backgroundColor: type === 'refund' ? '#d1fae5' : undefined,
+                color: type === 'refund' ? '#059669' : undefined,
+              }}
+            >
+              {expenseToEdit ? (
+                <FileText size={20} />
+              ) : type === 'refund' ? (
+                <RotateCcw size={20} />
+              ) : (
+                <Sparkles size={20} />
+              )}
             </div>
             <div>
               <h2 className="modal-title">
-                {expenseToEdit ? 'Editar Gasto' : 'Nuevo Registro de Gasto'}
+                {expenseToEdit
+                  ? type === 'refund'
+                    ? 'Editar Reembolso / Devolución'
+                    : 'Editar Gasto'
+                  : type === 'refund'
+                  ? 'Nuevo Reembolso / Devolución'
+                  : 'Nuevo Registro de Gasto'}
               </h2>
               <p className="modal-subtitle">
-                {expenseToEdit
+                {type === 'refund'
+                  ? 'Apunta el dinero devuelto o ingresado para ajustar tus cuentas'
+                  : expenseToEdit
                   ? 'Modifica los detalles del registro seleccionado'
                   : 'Completa los campos para añadir un nuevo movimiento'}
               </p>
@@ -190,14 +236,43 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         )}
 
         <form onSubmit={handleSubmit} className="modal-form">
+          {/* Segmented Type Toggle Tabs (Gasto vs Reembolso) */}
+          <div className="type-toggle-container">
+            <div className="type-segmented-control">
+              <button
+                type="button"
+                className={`type-segment-btn ${type === 'expense' ? 'active-expense' : ''}`}
+                onClick={() => {
+                  setType('expense');
+                  if (categoryId === 'otros' && !expenseToEdit) setCategoryId('alimentacion');
+                }}
+              >
+                <TrendingDown size={16} />
+                <span>💸 Gasto</span>
+              </button>
+              <button
+                type="button"
+                className={`type-segment-btn ${type === 'refund' ? 'active-refund' : ''}`}
+                onClick={() => {
+                  setType('refund');
+                  if (categoryId === 'alimentacion' && !expenseToEdit) setCategoryId('otros');
+                }}
+              >
+                <RotateCcw size={16} />
+                <span>🔄 Reembolso / Devolución</span>
+              </button>
+            </div>
+          </div>
+
           {/* 1. Amount Input */}
           <div className="form-group">
             <label className="form-label" htmlFor="expense-amount">
-              Importe ({currency === 'EUR' ? '€' : currency})
+              {type === 'refund' ? 'Importe Reembolsado / Devuelto' : 'Importe del Gasto'} ({currency === 'EUR' ? '€' : currency})
               <span className="required-star">*</span>
             </label>
-            <div className="amount-input-wrapper">
-              <span className="amount-currency-symbol">
+            <div className={`amount-input-wrapper ${type === 'refund' ? 'refund-accent' : ''}`}>
+              <span className={`amount-currency-symbol ${type === 'refund' ? 'text-emerald' : ''}`}>
+                {type === 'refund' ? '+' : ''}
                 {currency === 'EUR' ? '€' : currency === 'USD' ? '$' : currency === 'GBP' ? '£' : '$'}
               </span>
               <input
@@ -244,7 +319,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
           {/* 2. Category Selector */}
           <div className="form-group">
             <label className="form-label">
-              Categoría <span className="required-star">*</span>
+              Categoría Asociada <span className="required-star">*</span>
             </label>
             <div className="category-chips-grid">
               {CATEGORIES.map((cat) => {
@@ -273,17 +348,22 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Description & Comment */}
+          {/* 3. Description & Concept */}
           <div className="form-group">
             <label className="form-label" htmlFor="expense-description">
-              Comentario / Descripción <span className="required-star">*</span>
+              {type === 'refund' ? 'Motivo o Concepto de Devolución' : 'Comentario / Descripción'}{' '}
+              <span className="required-star">*</span>
             </label>
             <div className="input-with-icon">
               <FileText size={17} className="field-icon" />
               <input
                 id="expense-description"
                 type="text"
-                placeholder="Ej. Compra semanal en Mercadona, Cena, Gasolina..."
+                placeholder={
+                  type === 'refund'
+                    ? 'Ej. Devolución prenda Zara, Amazon, Bizum amigos, Reembolso vuelo...'
+                    : 'Ej. Compra semanal en Mercadona, Cena, Gasolina...'
+                }
                 value={description}
                 onChange={(e) => {
                   setDescription(e.target.value);
@@ -296,7 +376,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
             {/* Description Suggestions */}
             <div className="desc-suggestions-row">
-              {popularDescriptions.map((desc) => (
+              {currentDescriptions.map((desc) => (
                 <button
                   key={desc}
                   type="button"
@@ -340,7 +420,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
             {/* Payment Method */}
             <div className="form-group">
-              <label className="form-label">Método de Pago</label>
+              <label className="form-label">
+                {type === 'refund' ? 'Método / Destino del Reembolso' : 'Método de Pago'}
+              </label>
               <div className="input-with-icon">
                 <CreditCard size={17} className="field-icon" />
                 <select
@@ -363,9 +445,18 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             <button type="button" onClick={onClose} className="btn-cancel">
               Cancelar
             </button>
-            <button type="submit" className="btn-submit-primary">
-              <Plus size={18} />
-              <span>{expenseToEdit ? 'Guardar Cambios' : 'Registrar Gasto'}</span>
+            <button
+              type="submit"
+              className={type === 'refund' ? 'btn-submit-refund' : 'btn-submit-primary'}
+            >
+              {type === 'refund' ? <RotateCcw size={18} /> : <Plus size={18} />}
+              <span>
+                {expenseToEdit
+                  ? 'Guardar Cambios'
+                  : type === 'refund'
+                  ? 'Registrar Reembolso'
+                  : 'Registrar Gasto'}
+              </span>
             </button>
           </div>
         </form>

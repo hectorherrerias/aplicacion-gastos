@@ -31,7 +31,7 @@ export const initDatabase = () => {
     );
   `);
 
-  // 2. Expenses table (with user_id for multi-user data isolation)
+  // 2. Expenses table (with user_id for multi-user data isolation and type for expenses/refunds)
   db.exec(`
     CREATE TABLE IF NOT EXISTS expenses (
       id TEXT PRIMARY KEY,
@@ -41,17 +41,24 @@ export const initDatabase = () => {
       category_id TEXT NOT NULL,
       description TEXT NOT NULL,
       payment_method TEXT DEFAULT 'tarjeta',
+      type TEXT DEFAULT 'expense',
       created_at INTEGER NOT NULL
     );
   `);
 
-  // Auto-migration: check if user_id column exists in existing expenses table
+  // Auto-migration: check if user_id and type columns exist in existing expenses table
   try {
     const tableInfo = db.prepare("PRAGMA table_info('expenses')").all() as Array<{ name: string }>;
     const hasUserId = tableInfo.some((col) => col.name === 'user_id');
     if (!hasUserId) {
       console.log('[Database] Migrating expenses table: adding user_id column...');
       db.exec("ALTER TABLE expenses ADD COLUMN user_id TEXT DEFAULT 'usr-admin-default';");
+    }
+
+    const hasType = tableInfo.some((col) => col.name === 'type');
+    if (!hasType) {
+      console.log('[Database] Migrating expenses table: adding type column for refunds support...');
+      db.exec("ALTER TABLE expenses ADD COLUMN type TEXT DEFAULT 'expense';");
     }
   } catch (err) {
     console.error('[Database Migration Error]', err);
@@ -62,6 +69,7 @@ export const initDatabase = () => {
     CREATE INDEX IF NOT EXISTS idx_expenses_user ON expenses(user_id);
     CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
     CREATE INDEX IF NOT EXISTS idx_expenses_user_cat ON expenses(user_id, category_id);
+    CREATE INDEX IF NOT EXISTS idx_expenses_user_type ON expenses(user_id, type);
   `);
 
   // 3. User Settings table (User-specific budget, currency, etc.)

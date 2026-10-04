@@ -113,47 +113,53 @@ export const ChartsSection: React.FC = () => {
   };
 
   // 2. Bar / Line Chart Configuration (12 months)
-  const barColors = monthlySummary.map((m) =>
-    !isAllYear && m.monthIndex === filters.selectedMonth
-      ? '#10b981' // Active month highlight (Emerald)
-      : isDark
-      ? '#3b82f6' // Crisp blue in dark mode
-      : '#93c5fd' // Default soft blue in light mode
-  );
-
-  const barHoverColors = monthlySummary.map((m) =>
-    !isAllYear && m.monthIndex === filters.selectedMonth
-      ? '#059669'
-      : '#2563eb'
-  );
-
   const yearlyChartData = {
     labels: MONTH_SHORT_ES,
-    datasets: [
+    datasets:
       annualChartType === 'bar'
-        ? {
-            label: 'Gasto mensual',
-            data: monthlySummary.map((m) => m.total),
-            backgroundColor: barColors,
-            hoverBackgroundColor: barHoverColors,
-            borderRadius: 8,
-            borderSkipped: false,
-            maxBarThickness: 38,
-          }
-        : {
-            label: 'Evolución mensual',
-            data: monthlySummary.map((m) => m.total),
-            borderColor: '#10b981',
-            backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
-            fill: true,
-            tension: 0.35,
-            pointBackgroundColor: '#10b981',
-            pointBorderColor: isDark ? '#111827' : '#ffffff',
-            pointBorderWidth: 2,
-            pointRadius: 5,
-            pointHoverRadius: 8,
-          },
-    ],
+        ? [
+            {
+              label: 'Gastos',
+              data: monthlySummary.map((m) => m.totalExpenses),
+              backgroundColor: monthlySummary.map((m) =>
+                !isAllYear && m.monthIndex === filters.selectedMonth
+                  ? '#2563eb'
+                  : isDark
+                  ? '#3b82f6'
+                  : '#93c5fd'
+              ),
+              borderRadius: 6,
+              borderSkipped: false,
+              maxBarThickness: 24,
+            },
+            {
+              label: 'Reembolsos',
+              data: monthlySummary.map((m) => m.totalRefunds),
+              backgroundColor: monthlySummary.map((m) =>
+                !isAllYear && m.monthIndex === filters.selectedMonth
+                  ? '#059669'
+                  : '#34d399'
+              ),
+              borderRadius: 6,
+              borderSkipped: false,
+              maxBarThickness: 24,
+            },
+          ]
+        : [
+            {
+              label: 'Gasto Neto Mensual',
+              data: monthlySummary.map((m) => m.totalNet),
+              borderColor: '#10b981',
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.12)',
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#10b981',
+              pointBorderColor: isDark ? '#111827' : '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              pointHoverRadius: 8,
+            },
+          ],
   };
 
   const yearlyChartOptions: any = {
@@ -167,7 +173,18 @@ export const ChartsSection: React.FC = () => {
     },
     plugins: {
       legend: {
-        display: false,
+        display: annualChartType === 'bar',
+        position: 'top' as const,
+        align: 'end' as const,
+        labels: {
+          boxWidth: 12,
+          boxHeight: 12,
+          usePointStyle: true,
+          pointStyle: 'circle',
+          color: isDark ? '#94a3b8' : '#64748b',
+          font: { family: 'Plus Jakarta Sans', size: 11, weight: '600' },
+          padding: 10,
+        },
       },
       tooltip: {
         backgroundColor: isDark ? '#1e293b' : '#0f172a',
@@ -186,13 +203,30 @@ export const ChartsSection: React.FC = () => {
             return `${MONTH_NAMES_ES[idx]} ${filters.selectedYear}`;
           },
           label: function (context: any) {
-            const raw = context.raw as number;
             const idx = context.dataIndex;
-            const count = monthlySummary[idx]?.count || 0;
-            return [
-              ` Gasto total: ${formatCurrency(raw, currency)}`,
-              ` Movimientos: ${count} transacciones`,
-            ];
+            const item = monthlySummary[idx];
+            if (!item) return '';
+
+            if (annualChartType === 'line') {
+              return [
+                ` Gasto neto: ${formatCurrency(item.totalNet, currency)}`,
+                ` Gastos: ${formatCurrency(item.totalExpenses, currency)} (${item.expensesCount})`,
+                ` Reembolsos: +${formatCurrency(item.totalRefunds, currency)} (${item.refundsCount})`,
+              ];
+            }
+
+            if (context.datasetIndex === 0) {
+              return ` Gastos brutos: ${formatCurrency(item.totalExpenses, currency)} (${item.expensesCount})`;
+            } else {
+              return ` Reembolsos: +${formatCurrency(item.totalRefunds, currency)} (${item.refundsCount})`;
+            }
+          },
+          footer: function (items: any[]) {
+            if (!items.length) return '';
+            const idx = items[0].dataIndex;
+            const item = monthlySummary[idx];
+            if (!item || annualChartType === 'line') return '';
+            return `Gasto Neto: ${formatCurrency(item.totalNet, currency)}`;
           },
         },
       },
@@ -235,7 +269,7 @@ export const ChartsSection: React.FC = () => {
               <PieIcon size={15} />
               <span>Distribución por Categorías</span>
             </div>
-            <h3 className="chart-card-title">Gastos de {currentPeriodName}</h3>
+            <h3 className="chart-card-title">Gastos Netos de {currentPeriodName}</h3>
           </div>
           <span className="chart-subtitle-tag">{categoryBreakdown.filter(c => c.total > 0).length} categorías activas</span>
         </div>
@@ -246,7 +280,7 @@ export const ChartsSection: React.FC = () => {
               <div className="doughnut-canvas-container">
                 <Doughnut data={doughnutData} options={doughnutOptions} />
                 <div className="doughnut-center-metric">
-                  <span className="center-label">Total Periodo</span>
+                  <span className="center-label">Gasto Neto</span>
                   <span className="center-value tabular-nums">
                     {formatCurrency(kpiMetrics.currentMonthTotal, currency)}
                   </span>
@@ -256,7 +290,7 @@ export const ChartsSection: React.FC = () => {
               {/* High-End Category Breakdown List */}
               <div className="category-legend-list">
                 {categoryBreakdown.map((item) => {
-                  if (item.total === 0) return null;
+                  if (item.total === 0 && item.totalRefunds === 0) return null;
                   return (
                     <div
                       key={item.category.id}
@@ -292,7 +326,14 @@ export const ChartsSection: React.FC = () => {
                           <CategoryIcon categoryId={item.category.id} size={14} />
                         </div>
                         <div className="legend-text-col">
-                          <span className="legend-cat-name">{item.category.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="legend-cat-name">{item.category.name}</span>
+                            {item.totalRefunds > 0 && (
+                              <span className="category-refund-chip" title={`Reembolsado en ${item.category.name}`}>
+                                +{formatCurrency(item.totalRefunds, currency)}
+                              </span>
+                            )}
+                          </div>
                           <div className="legend-mini-bar-track">
                             <div
                               className="legend-mini-bar-fill"
@@ -321,8 +362,8 @@ export const ChartsSection: React.FC = () => {
               <div className="empty-icon-circle">
                 <PieIcon size={32} color="#94a3b8" />
               </div>
-              <h4>Sin gastos registrados en este periodo</h4>
-              <p>Añade un nuevo gasto para visualizar la distribución porcentual.</p>
+              <h4>Sin movimientos registrados en este periodo</h4>
+              <p>Añade un nuevo gasto o reembolso para visualizar la distribución porcentual.</p>
             </div>
           )}
         </div>
@@ -336,7 +377,7 @@ export const ChartsSection: React.FC = () => {
               <BarChart3 size={15} />
               <span>Evolución Anual</span>
             </div>
-            <h3 className="chart-card-title">Gastos Mensuales en {filters.selectedYear}</h3>
+            <h3 className="chart-card-title">Gastos y Reembolsos en {filters.selectedYear}</h3>
           </div>
 
           {/* Toggle View: Bar vs Line */}
@@ -344,18 +385,18 @@ export const ChartsSection: React.FC = () => {
             <button
               className={`toggle-btn ${annualChartType === 'bar' ? 'active' : ''}`}
               onClick={() => setAnnualChartType('bar')}
-              title="Vista en barras"
+              title="Comparativa mensual de gastos y reembolsos"
             >
               <BarChart3 size={15} />
-              <span>Barras</span>
+              <span>Gastos vs Devoluciones</span>
             </button>
             <button
               className={`toggle-btn ${annualChartType === 'line' ? 'active' : ''}`}
               onClick={() => setAnnualChartType('line')}
-              title="Vista en línea de tendencia"
+              title="Tendencia de gasto neto mensual"
             >
               <TrendingUp size={15} />
-              <span>Línea</span>
+              <span>Gasto Neto</span>
             </button>
           </div>
         </div>
@@ -381,7 +422,7 @@ export const ChartsSection: React.FC = () => {
                 <BarChart3 size={32} color="#94a3b8" />
               </div>
               <h4>Sin datos anuales para {filters.selectedYear}</h4>
-              <p>Comienza a registrar gastos para ver la evolución mes a mes.</p>
+              <p>Comienza a registrar movimientos para ver la evolución mes a mes.</p>
             </div>
           )}
         </div>

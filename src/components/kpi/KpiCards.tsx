@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Target,
+  RotateCcw,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
 import { formatCurrency, formatNumber } from '../../utils/formatters';
@@ -25,13 +26,19 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
 
   const {
     currentMonthTotal,
+    currentMonthGrossExpenses,
+    currentMonthRefunds,
     previousMonthTotal,
     monthDiffPercentage,
     topCategory,
     yearlyTotal,
+    yearlyGrossExpenses,
+    yearlyRefunds,
     monthlyAverage,
     dailyAverage,
     transactionCount,
+    expensesCount,
+    refundsCount,
     budgetMonthly,
     budgetUsedPercentage,
   } = kpiMetrics;
@@ -41,13 +48,13 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
 
   return (
     <div className="kpi-grid">
-      {/* Card 1: Gasto en el Periodo (Este Mes / Todo el año) */}
+      {/* Card 1: Gasto Neto en el Periodo (Este Mes / Todo el año) */}
       <div className="kpi-card card-primary-highlight">
         <div className="kpi-card-header">
           <div className="kpi-title-group">
             <span className="kpi-tag">{currentMonthName}</span>
             <h3 className="kpi-label">
-              {isAllYear ? 'Gasto Total del Año' : 'Total Gastado este Mes'}
+              {isAllYear ? 'Gasto Neto Anual' : 'Gasto Neto del Mes'}
             </h3>
           </div>
           <div className="kpi-icon-pill kpi-icon-emerald">
@@ -58,6 +65,19 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
         <div className="kpi-body">
           <div className="kpi-value tabular-nums">
             {formatCurrency(currentMonthTotal, currency)}
+          </div>
+
+          {/* Gross vs Refunds mini-pill breakdown */}
+          <div className="kpi-breakdown-subrow">
+            <span className="kpi-subpill" title="Total de gastos antes de devoluciones">
+              Gastos: <strong className="tabular-nums">{formatCurrency(currentMonthGrossExpenses, currency)}</strong>
+            </span>
+            {currentMonthRefunds > 0 && (
+              <span className="kpi-subpill kpi-subpill-refund" title="Total reembolsado / devuelto este mes">
+                <RotateCcw size={11} />
+                +<strong className="tabular-nums">{formatCurrency(currentMonthRefunds, currency)}</strong>
+              </span>
+            )}
           </div>
 
           {/* Month vs Previous Month Comparison */}
@@ -122,7 +142,7 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
         <div className="kpi-card-header">
           <div className="kpi-title-group">
             <span className="kpi-tag">Top Categoría</span>
-            <h3 className="kpi-label">Mayor Gasto</h3>
+            <h3 className="kpi-label">Mayor Gasto Neto</h3>
           </div>
           <div
             className="kpi-icon-pill"
@@ -155,22 +175,23 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
               </div>
               <span className="kpi-subtext">
                 {topCategory.count} {topCategory.count === 1 ? 'movimiento' : 'movimientos'} registrados
+                {topCategory.totalRefunds > 0 && ` • (+${formatCurrency(topCategory.totalRefunds, currency)} devueltos)`}
               </span>
             </>
           ) : (
             <div className="kpi-empty-state">
-              <p className="kpi-empty-text">Sin gastos en este periodo</p>
+              <p className="kpi-empty-text">Sin movimientos en este periodo</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Card 3: Total Anual */}
+      {/* Card 3: Total Anual Acumulado */}
       <div className="kpi-card">
         <div className="kpi-card-header">
           <div className="kpi-title-group">
             <span className="kpi-tag">Año {filters.selectedYear}</span>
-            <h3 className="kpi-label">Total Anual Acumulado</h3>
+            <h3 className="kpi-label">Total Anual Neto</h3>
           </div>
           <div className="kpi-icon-pill kpi-icon-blue">
             <CalendarDays size={20} />
@@ -181,42 +202,75 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ onOpenBudgetModal }) => {
           <div className="kpi-value tabular-nums">
             {formatCurrency(yearlyTotal, currency)}
           </div>
-          <div className="kpi-meta-row">
-            <span className="kpi-meta-label">Media mensual:</span>
+          <div className="kpi-breakdown-subrow">
+            <span className="kpi-subpill">
+              Gastos: <strong>{formatCurrency(yearlyGrossExpenses, currency)}</strong>
+            </span>
+            {yearlyRefunds > 0 && (
+              <span className="kpi-subpill kpi-subpill-refund">
+                <RotateCcw size={11} />
+                +<strong>{formatCurrency(yearlyRefunds, currency)}</strong>
+              </span>
+            )}
+          </div>
+          <div className="kpi-meta-row" style={{ marginTop: '8px' }}>
+            <span className="kpi-meta-label">Media mensual neta:</span>
             <span className="kpi-meta-val tabular-nums">
               {formatCurrency(monthlyAverage, currency)}/mes
             </span>
           </div>
-          <span className="kpi-subtext">Calculado sobre 12 meses de {filters.selectedYear}</span>
         </div>
       </div>
 
-      {/* Card 4: Gasto Diario Medio / Movimientos */}
+      {/* Card 4: Reembolsos y Actividad del Periodo */}
       <div className="kpi-card">
         <div className="kpi-card-header">
           <div className="kpi-title-group">
-            <span className="kpi-tag">Actividad</span>
-            <h3 className="kpi-label">Gasto Diario Promedio</h3>
+            <span className="kpi-tag">
+              {currentMonthRefunds > 0 ? 'Devoluciones' : 'Actividad'}
+            </span>
+            <h3 className="kpi-label">
+              {currentMonthRefunds > 0 ? 'Reembolsos Recibidos' : 'Gasto Diario Promedio'}
+            </h3>
           </div>
-          <div className="kpi-icon-pill kpi-icon-purple">
-            <TrendingUp size={20} />
+          <div className={`kpi-icon-pill ${currentMonthRefunds > 0 ? 'kpi-icon-teal' : 'kpi-icon-purple'}`}>
+            {currentMonthRefunds > 0 ? <RotateCcw size={20} /> : <TrendingUp size={20} />}
           </div>
         </div>
 
         <div className="kpi-body">
-          <div className="kpi-value tabular-nums">
-            {formatCurrency(dailyAverage, currency)}
-            <span className="kpi-unit">/día</span>
-          </div>
-          <div className="kpi-meta-row">
-            <span className="kpi-meta-label">Transacciones:</span>
-            <span className="kpi-meta-val">
-              {transactionCount} {transactionCount === 1 ? 'registro' : 'registros'}
-            </span>
-          </div>
-          <span className="kpi-subtext">
-            {isAllYear ? 'Distribución a lo largo del año' : `Periodo de ${currentMonthName}`}
-          </span>
+          {currentMonthRefunds > 0 ? (
+            <>
+              <div className="kpi-value text-emerald tabular-nums">
+                +{formatCurrency(currentMonthRefunds, currency)}
+              </div>
+              <div className="kpi-meta-row">
+                <span className="kpi-meta-label">Devoluciones:</span>
+                <span className="kpi-meta-val">
+                  {refundsCount} {refundsCount === 1 ? 'reembolso' : 'reembolsos'} ({expensesCount} gastos)
+                </span>
+              </div>
+              <span className="kpi-subtext">
+                Dinero recuperado y restado del gasto neto del periodo
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="kpi-value tabular-nums">
+                {formatCurrency(dailyAverage, currency)}
+                <span className="kpi-unit">/día</span>
+              </div>
+              <div className="kpi-meta-row">
+                <span className="kpi-meta-label">Transacciones:</span>
+                <span className="kpi-meta-val">
+                  {transactionCount} {transactionCount === 1 ? 'registro' : 'registros'}
+                </span>
+              </div>
+              <span className="kpi-subtext">
+                {isAllYear ? 'Distribución neta a lo largo del año' : `Periodo de ${currentMonthName}`}
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>

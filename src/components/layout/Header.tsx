@@ -24,7 +24,7 @@ import { downloadCSV, downloadJSON } from '../../utils/formatters';
 import { useToast } from '../ui/Toast';
 
 interface HeaderProps {
-  onOpenAddModal: () => void;
+  onOpenAddModal: (defaultType?: 'expense' | 'refund') => void;
   onOpenBudgetModal: () => void;
 }
 
@@ -99,10 +99,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
   };
 
   const handleExportCSV = () => {
-    downloadCSV(expenses, `gastos_${filters.selectedYear}_${filters.selectedMonth !== -1 ? MONTH_NAMES_ES[filters.selectedMonth] : 'anual'}.csv`);
+    downloadCSV(expenses, `movimientos_${filters.selectedYear}_${filters.selectedMonth !== -1 ? MONTH_NAMES_ES[filters.selectedMonth] : 'anual'}.csv`);
     showToast({
       title: 'Archivo CSV descargado',
-      message: 'Compatible con Microsoft Excel, Numbers y Google Sheets.',
+      message: 'Incluye gastos y reembolsos con compatibilidad total con Excel.',
       type: 'success',
     });
     setShowOptionsDropdown(false);
@@ -122,17 +122,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
     resetToSampleData();
     showToast({
       title: 'Datos de muestra cargados',
-      message: 'Se han cargado gastos de demostración para el año en curso.',
+      message: 'Se han cargado gastos y reembolsos de demostración para el año.',
       type: 'info',
     });
     setShowOptionsDropdown(false);
   };
 
   const handleClearAll = () => {
-    if (window.confirm('¿Estás seguro de que deseas vaciar todos los gastos?')) {
+    if (window.confirm('¿Estás seguro de que deseas vaciar todos los gastos y reembolsos?')) {
       clearAllExpenses();
       showToast({
-        title: 'Gastos eliminados',
+        title: 'Movimientos eliminados',
         message: 'La aplicación ha quedado totalmente vacía.',
         type: 'info',
       });
@@ -156,7 +156,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
               <h1 className="brand-title">GastosPro</h1>
               <span className="brand-badge">Fintech</span>
             </div>
-            <p className="brand-subtitle">Control & Análisis de Gastos Personales</p>
+            <p className="brand-subtitle">Control & Análisis de Gastos y Reembolsos</p>
           </div>
         </div>
 
@@ -294,6 +294,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
 
                   <div className="dropdown-divider" />
 
+                  <button
+                    onClick={() => {
+                      onOpenAddModal('refund');
+                      setShowOptionsDropdown(false);
+                    }}
+                    className="dropdown-item"
+                  >
+                    <Plus size={16} className="item-icon text-emerald" />
+                    <span>Registrar Reembolso / Devolución</span>
+                  </button>
+
                   <button onClick={handleExportCSV} className="dropdown-item">
                     <Download size={16} className="item-icon" />
                     <span>Exportar a Excel / CSV</span>
@@ -311,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
 
                   <button onClick={handleClearAll} className="dropdown-item" style={{ color: '#ef4444' }}>
                     <Trash2 size={16} className="item-icon" style={{ color: '#ef4444' }} />
-                    <span>Vaciar Todos los Gastos</span>
+                    <span>Vaciar Todos los Movimientos</span>
                   </button>
 
                   <div className="dropdown-divider" />
@@ -358,10 +369,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
             )}
           </div>
 
-          {/* Primary CTA: Add Expense */}
-          <button onClick={onOpenAddModal} className="btn-primary" id="btn-nuevo-gasto">
+          {/* Primary CTA: Add Movement */}
+          <button onClick={() => onOpenAddModal('expense')} className="btn-primary" id="btn-nuevo-gasto">
             <Plus size={18} strokeWidth={2.5} />
-            <span>Añadir Gasto</span>
+            <span>Nuevo Movimiento</span>
           </button>
         </div>
       </div>

@@ -15,6 +15,7 @@ interface ExpenseRow {
   category_id: string;
   description: string;
   payment_method: string;
+  type?: string;
   created_at: number;
 }
 
@@ -25,10 +26,11 @@ const mapRowToExpense = (row: ExpenseRow) => ({
   categoryId: row.category_id,
   description: row.description,
   paymentMethod: row.payment_method,
+  type: (row.type === 'refund' ? 'refund' : 'expense') as 'expense' | 'refund',
   createdAt: row.created_at,
 });
 
-// GET /api/expenses - List only the logged-in user's expenses
+// GET /api/expenses - List only the logged-in user's expenses & refunds
 expensesRouter.get('/', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const userId = req.user?.userId;
@@ -45,11 +47,11 @@ expensesRouter.get('/', (req: AuthenticatedRequest, res: Response): void => {
     res.json({ expenses });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al consultar gastos en SQLite.' });
+    res.status(500).json({ error: 'Error al consultar movimientos en SQLite.' });
   }
 });
 
-// POST /api/expenses - Create new expense for the logged-in user
+// POST /api/expenses - Create new expense or refund for the logged-in user
 expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const userId = req.user?.userId;
@@ -58,7 +60,7 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
       return;
     }
 
-    const { amount, date, categoryId, description, paymentMethod } = req.body;
+    const { amount, date, categoryId, description, paymentMethod, type } = req.body;
 
     const parsedAmount = Number(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -74,11 +76,12 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
     const id = `exp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const createdAt = Date.now();
     const method = paymentMethod || 'tarjeta';
+    const movementType = type === 'refund' ? 'refund' : 'expense';
 
     db.prepare(`
-      INSERT INTO expenses (id, user_id, amount, date, category_id, description, payment_method, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, userId, parsedAmount, date, categoryId, description.trim(), method, createdAt);
+      INSERT INTO expenses (id, user_id, amount, date, category_id, description, payment_method, type, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, userId, parsedAmount, date, categoryId, description.trim(), method, movementType, createdAt);
 
     const createdExpense = {
       id,
@@ -87,17 +90,18 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
       categoryId,
       description: description.trim(),
       paymentMethod: method,
+      type: movementType as 'expense' | 'refund',
       createdAt,
     };
 
     res.status(201).json({ expense: createdExpense });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al guardar el gasto en SQLite.' });
+    res.status(500).json({ error: 'Error al guardar el movimiento en SQLite.' });
   }
 });
 
-// PUT /api/expenses/:id - Update existing expense of the logged-in user
+// PUT /api/expenses/:id - Update existing expense or refund of the logged-in user
 expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const userId = req.user?.userId;
@@ -107,14 +111,14 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
     }
 
     const { id } = req.params;
-    const { amount, date, categoryId, description, paymentMethod } = req.body;
+    const { amount, date, categoryId, description, paymentMethod, type } = req.body;
 
     const existing = db
       .prepare('SELECT * FROM expenses WHERE id = ? AND user_id = ?')
       .get(id, userId) as ExpenseRow | undefined;
 
     if (!existing) {
-      res.status(404).json({ error: 'Gasto no encontrado o no pertenece a tu cuenta.' });
+      res.status(404).json({ error: 'Movimiento no encontrado o no pertenece a tu cuenta.' });
       return;
     }
 
@@ -123,12 +127,13 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
     const newCategory = categoryId || existing.category_id;
     const newDesc = description !== undefined ? description.trim() : existing.description;
     const newMethod = paymentMethod || existing.payment_method;
+    const newType = type !== undefined ? (type === 'refund' ? 'refund' : 'expense') : (existing.type || 'expense');
 
     db.prepare(`
       UPDATE expenses
-      SET amount = ?, date = ?, category_id = ?, description = ?, payment_method = ?
+      SET amount = ?, date = ?, category_id = ?, description = ?, payment_method = ?, type = ?
       WHERE id = ? AND user_id = ?
-    `).run(parsedAmount, newDate, newCategory, newDesc, newMethod, id, userId);
+    `).run(parsedAmount, newDate, newCategory, newDesc, newMethod, newType, id, userId);
 
     const updated = {
       id,
@@ -137,17 +142,18 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
       categoryId: newCategory,
       description: newDesc,
       paymentMethod: newMethod,
+      type: newType as 'expense' | 'refund',
       createdAt: existing.created_at,
     };
 
     res.json({ expense: updated });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al actualizar el gasto en SQLite.' });
+    res.status(500).json({ error: 'Error al actualizar el movimiento en SQLite.' });
   }
 });
 
-// DELETE /api/expenses/:id - Delete an expense belonging to the logged-in user
+// DELETE /api/expenses/:id - Delete an expense or refund belonging to the logged-in user
 expensesRouter.delete('/:id', (req: AuthenticatedRequest, res: Response): void => {
   try {
     const userId = req.user?.userId;
@@ -162,19 +168,19 @@ expensesRouter.delete('/:id', (req: AuthenticatedRequest, res: Response): void =
       .get(id, userId) as ExpenseRow | undefined;
     
     if (!existing) {
-      res.status(404).json({ error: 'Gasto no encontrado o no pertenece a tu cuenta.' });
+      res.status(404).json({ error: 'Movimiento no encontrado o no pertenece a tu cuenta.' });
       return;
     }
 
     db.prepare('DELETE FROM expenses WHERE id = ? AND user_id = ?').run(id, userId);
 
     res.json({
-      message: 'Gasto eliminado correctamente de SQLite.',
+      message: 'Movimiento eliminado correctamente de SQLite.',
       deletedExpense: mapRowToExpense(existing),
     });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al eliminar el gasto en SQLite.' });
+    res.status(500).json({ error: 'Error al eliminar el movimiento en SQLite.' });
   }
 });
 
@@ -188,10 +194,10 @@ expensesRouter.post('/clear', (req: AuthenticatedRequest, res: Response): void =
     }
 
     db.prepare('DELETE FROM expenses WHERE user_id = ?').run(userId);
-    res.json({ message: 'Todos tus gastos han sido eliminados de SQLite.' });
+    res.json({ message: 'Todos tus movimientos han sido eliminados de SQLite.' });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al vaciar la tabla de gastos.' });
+    res.status(500).json({ error: 'Error al vaciar la tabla de movimientos.' });
   }
 });
 
@@ -206,13 +212,13 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
 
     const { expenses } = req.body;
     if (!Array.isArray(expenses)) {
-      res.status(400).json({ error: 'El formato de datos debe ser un array de gastos.' });
+      res.status(400).json({ error: 'El formato de datos debe ser un array de gastos o reembolsos.' });
       return;
     }
 
     const insertStmt = db.prepare(`
-      INSERT OR REPLACE INTO expenses (id, user_id, amount, date, category_id, description, payment_method, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO expenses (id, user_id, amount, date, category_id, description, payment_method, type, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMany = db.transaction((items: any[]) => {
@@ -223,19 +229,20 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
         const categoryId = exp.categoryId || exp.category_id || 'otros';
         const description = (exp.description || '').trim();
         const paymentMethod = exp.paymentMethod || exp.payment_method || 'tarjeta';
+        const type = exp.type === 'refund' ? 'refund' : 'expense';
         const createdAt = exp.createdAt || exp.created_at || Date.now();
 
         if (amount > 0 && date && description) {
-          insertStmt.run(id, userId, amount, date, categoryId, description, paymentMethod, createdAt);
+          insertStmt.run(id, userId, amount, date, categoryId, description, paymentMethod, type, createdAt);
         }
       }
     });
 
     insertMany(expenses);
 
-    res.json({ message: `${expenses.length} gastos importados en tu cuenta de SQLite.` });
+    res.json({ message: `${expenses.length} movimientos importados en tu cuenta de SQLite.` });
   } catch (error) {
     console.error('[Expenses API Error]', error);
-    res.status(500).json({ error: 'Error al importar gastos.' });
+    res.status(500).json({ error: 'Error al importar movimientos.' });
   }
 });

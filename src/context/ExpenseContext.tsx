@@ -54,6 +54,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     selectedYear: currentYear,
     selectedMonth: currentMonth,
     selectedCategory: 'all',
+    selectedType: 'all',
     searchQuery: '',
     sortBy: 'date',
     sortOrder: 'desc',
@@ -64,7 +65,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (!isAuthenticated) return;
     setIsLoadingData(true);
     try {
-      // 1. Fetch expenses
+      // 1. Fetch expenses & refunds
       const fetchedExpenses = await api.expenses.getAll();
       setExpenses(fetchedExpenses || []);
 
@@ -119,10 +120,11 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setExpenses((prev) => [created, ...prev]);
       return created;
     } catch (error) {
-      console.error('Error creating expense in SQLite:', error);
+      console.error('Error creating expense/refund in SQLite:', error);
       // Fallback local creation
       const localExp: Expense = {
         ...expenseData,
+        type: expenseData.type || 'expense',
         id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         createdAt: Date.now(),
       };
@@ -136,7 +138,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const saved = await api.expenses.update(id, updated);
       setExpenses((prev) => prev.map((exp) => (exp.id === id ? saved : exp)));
     } catch (error) {
-      console.error('Error updating expense in SQLite:', error);
+      console.error('Error updating expense/refund in SQLite:', error);
       setExpenses((prev) => prev.map((exp) => (exp.id === id ? { ...exp, ...updated } : exp)));
     }
   };
@@ -150,7 +152,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setExpenses((prev) => prev.filter((e) => e.id !== id));
       return target;
     } catch (error) {
-      console.error('Error deleting expense in SQLite:', error);
+      console.error('Error deleting movement in SQLite:', error);
       setExpenses((prev) => prev.filter((e) => e.id !== id));
       return target;
     }
@@ -164,10 +166,11 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         categoryId: expense.categoryId,
         description: expense.description,
         paymentMethod: expense.paymentMethod,
+        type: expense.type || 'expense',
       });
       setExpenses((prev) => [expense, ...prev]);
     } catch (error) {
-      console.error('Error restoring expense in SQLite:', error);
+      console.error('Error restoring movement in SQLite:', error);
       setExpenses((prev) => [expense, ...prev]);
     }
   };
@@ -188,6 +191,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       selectedYear: currentYear,
       selectedMonth: currentMonth,
       selectedCategory: 'all',
+      selectedType: 'all',
       searchQuery: '',
     }));
   };
@@ -196,7 +200,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       await api.expenses.clearAll();
     } catch (error) {
-      console.error('Error clearing expenses in SQLite:', error);
+      console.error('Error clearing movements in SQLite:', error);
     }
     setExpenses([]);
   };
@@ -207,7 +211,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         await api.expenses.importMany(imported);
         setExpenses(imported);
       } catch (error) {
-        console.error('Error importing expenses:', error);
+        console.error('Error importing movements:', error);
         setExpenses(imported);
       }
     }
@@ -225,7 +229,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return Array.from(yearsSet).sort((a, b) => b - a);
   }, [expenses, currentYear]);
 
-  // Derived: Filtered & Sorted expenses
+  // Derived: Filtered & Sorted movements
   const filteredExpenses = useMemo(() => {
     return expenses.filter((exp) => {
       if (!exp.date) return false;
@@ -237,13 +241,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (filters.selectedMonth !== -1 && expMonth !== filters.selectedMonth) return false;
       if (filters.selectedCategory !== 'all' && exp.categoryId !== filters.selectedCategory) return false;
 
+      // Filter by type: 'all' | 'expense' | 'refund'
+      const expType = exp.type === 'refund' ? 'refund' : 'expense';
+      if (filters.selectedType !== 'all' && expType !== filters.selectedType) return false;
+
       if (filters.searchQuery.trim() !== '') {
         const query = filters.searchQuery.toLowerCase().trim();
         const descMatch = exp.description?.toLowerCase().includes(query);
         const catInfo = CATEGORY_MAP[exp.categoryId];
         const catMatch = catInfo?.name.toLowerCase().includes(query);
         const amountMatch = exp.amount.toString().includes(query);
-        if (!descMatch && !catMatch && !amountMatch) return false;
+        const typeMatch = (expType === 'refund' ? 'reembolso devolucion devolución' : 'gasto').includes(query);
+        if (!descMatch && !catMatch && !amountMatch && !typeMatch) return false;
       }
 
       return true;
@@ -266,14 +275,19 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   }, [expenses, filters]);
 
-  // Derived: Monthly Summary for 12 months
+  // Derived: Monthly Summary for 12 months (Gross expenses, Refunds, Net)
   const monthlySummary = useMemo<MonthSummary[]>(() => {
     const summaries: MonthSummary[] = Array.from({ length: 12 }, (_, i) => ({
       monthIndex: i,
       monthName: MONTH_NAMES_ES[i],
       year: filters.selectedYear,
       total: 0,
+      totalExpenses: 0,
+      totalRefunds: 0,
+      totalNet: 0,
       count: 0,
+      expensesCount: 0,
+      refundsCount: 0,
     }));
 
     expenses.forEach((exp) => {
@@ -283,15 +297,27 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const expMonth = parseInt(monthStr, 10) - 1;
 
       if (expYear === filters.selectedYear && expMonth >= 0 && expMonth < 12) {
-        summaries[expMonth].total += exp.amount;
+        const isRefund = exp.type === 'refund';
+        if (isRefund) {
+          summaries[expMonth].totalRefunds += exp.amount;
+          summaries[expMonth].refundsCount += 1;
+        } else {
+          summaries[expMonth].totalExpenses += exp.amount;
+          summaries[expMonth].expensesCount += 1;
+        }
         summaries[expMonth].count += 1;
       }
+    });
+
+    summaries.forEach((s) => {
+      s.totalNet = Math.max(0, s.totalExpenses - s.totalRefunds);
+      s.total = s.totalNet;
     });
 
     return summaries;
   }, [expenses, filters.selectedYear]);
 
-  // Derived: Category Breakdown
+  // Derived: Category Breakdown (Net spent per category)
   const categoryBreakdown = useMemo<CategoryBreakdown[]>(() => {
     const targetExpenses = expenses.filter((exp) => {
       if (!exp.date) return false;
@@ -304,34 +330,45 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return true;
     });
 
-    const totalSpent = targetExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const categoryTotals: Record<CategoryId, { total: number; count: number }> = {
-      vivienda: { total: 0, count: 0 },
-      alimentacion: { total: 0, count: 0 },
-      transporte: { total: 0, count: 0 },
-      ocio: { total: 0, count: 0 },
-      salud: { total: 0, count: 0 },
-      educacion: { total: 0, count: 0 },
-      otros: { total: 0, count: 0 },
+    const categoryStats: Record<CategoryId, { totalExpenses: number; totalRefunds: number; count: number }> = {
+      vivienda: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      alimentacion: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      transporte: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      ocio: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      salud: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      educacion: { totalExpenses: 0, totalRefunds: 0, count: 0 },
+      otros: { totalExpenses: 0, totalRefunds: 0, count: 0 },
     };
 
     targetExpenses.forEach((exp) => {
-      if (categoryTotals[exp.categoryId]) {
-        categoryTotals[exp.categoryId].total += exp.amount;
-        categoryTotals[exp.categoryId].count += 1;
+      if (categoryStats[exp.categoryId]) {
+        if (exp.type === 'refund') {
+          categoryStats[exp.categoryId].totalRefunds += exp.amount;
+        } else {
+          categoryStats[exp.categoryId].totalExpenses += exp.amount;
+        }
+        categoryStats[exp.categoryId].count += 1;
       }
     });
 
+    const overallNetSpent = Object.values(categoryStats).reduce(
+      (sum, s) => sum + Math.max(0, s.totalExpenses - s.totalRefunds),
+      0
+    );
+
     const breakdown: CategoryBreakdown[] = CATEGORIES.map((cat) => {
-      const stats = categoryTotals[cat.id];
-      const percentage = totalSpent > 0 ? (stats.total / totalSpent) * 100 : 0;
+      const stats = categoryStats[cat.id];
+      const netTotal = Math.max(0, stats.totalExpenses - stats.totalRefunds);
+      const percentage = overallNetSpent > 0 ? (netTotal / overallNetSpent) * 100 : 0;
       return {
         category: cat,
-        total: stats.total,
+        total: netTotal,
+        totalExpenses: stats.totalExpenses,
+        totalRefunds: stats.totalRefunds,
         percentage: Number(percentage.toFixed(1)),
         count: stats.count,
       };
-    }).filter((item) => item.total > 0 || filters.selectedMonth === -1);
+    }).filter((item) => item.totalExpenses > 0 || item.totalRefunds > 0 || filters.selectedMonth === -1);
 
     return breakdown.sort((a, b) => b.total - a.total);
   }, [expenses, filters.selectedYear, filters.selectedMonth]);
@@ -367,8 +404,23 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     }
 
-    const currentMonthTotal = currentPeriodExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const previousMonthTotal = prevPeriodExpenses.reduce((sum, e) => sum + e.amount, 0);
+    // Current period metrics
+    const currentMonthGrossExpenses = currentPeriodExpenses
+      .filter((e) => e.type !== 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const currentMonthRefunds = currentPeriodExpenses
+      .filter((e) => e.type === 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const currentMonthTotal = Math.max(0, currentMonthGrossExpenses - currentMonthRefunds);
+
+    // Previous period metrics
+    const previousMonthGrossExpenses = prevPeriodExpenses
+      .filter((e) => e.type !== 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const previousMonthRefunds = prevPeriodExpenses
+      .filter((e) => e.type === 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const previousMonthTotal = Math.max(0, previousMonthGrossExpenses - previousMonthRefunds);
 
     let monthDiffPercentage: number | null = null;
     if (previousMonthTotal > 0) {
@@ -377,11 +429,18 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       );
     }
 
+    // Yearly calculations
     const yearlyExpenses = expenses.filter((e) => {
       const [y] = e.date.split('-');
       return parseInt(y, 10) === selYear;
     });
-    const yearlyTotal = yearlyExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const yearlyGrossExpenses = yearlyExpenses
+      .filter((e) => e.type !== 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const yearlyRefunds = yearlyExpenses
+      .filter((e) => e.type === 'refund')
+      .reduce((sum, e) => sum + e.amount, 0);
+    const yearlyTotal = Math.max(0, yearlyGrossExpenses - yearlyRefunds);
 
     const daysInMonth = selMonth === -1 ? 365 : new Date(selYear, selMonth + 1, 0).getDate();
     const dailyAverage = daysInMonth > 0 ? currentMonthTotal / daysInMonth : 0;
@@ -389,15 +448,26 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const topCat = categoryBreakdown.length > 0 && categoryBreakdown[0].total > 0 ? categoryBreakdown[0] : null;
     const budgetUsedPercentage = budgetMonthly > 0 ? Math.min(100, (currentMonthTotal / budgetMonthly) * 100) : 0;
 
+    const expensesCount = currentPeriodExpenses.filter((e) => e.type !== 'refund').length;
+    const refundsCount = currentPeriodExpenses.filter((e) => e.type === 'refund').length;
+
     return {
       currentMonthTotal,
+      currentMonthGrossExpenses,
+      currentMonthRefunds,
       previousMonthTotal,
+      previousMonthGrossExpenses,
+      previousMonthRefunds,
       monthDiffPercentage,
       topCategory: topCat,
       yearlyTotal,
+      yearlyGrossExpenses,
+      yearlyRefunds,
       monthlyAverage,
       dailyAverage,
       transactionCount: currentPeriodExpenses.length,
+      expensesCount,
+      refundsCount,
       budgetMonthly,
       budgetUsedPercentage,
     };

@@ -10,21 +10,24 @@ import { TransactionHistory } from './components/history/TransactionHistory';
 import { ExpenseFormModal } from './components/forms/ExpenseFormModal';
 import { BudgetModal } from './components/modals/BudgetModal';
 import { LoginPage } from './components/auth/LoginPage';
-import type { Expense } from './types/expense';
+import type { Expense, TransactionType } from './types/expense';
 import './App.css';
 
 const MainDashboard: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
+  const [modalDefaultType, setModalDefaultType] = useState<TransactionType>('expense');
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = (type: TransactionType = 'expense') => {
     setExpenseToEdit(null);
+    setModalDefaultType(type);
     setIsAddModalOpen(true);
   };
 
   const handleEditExpense = (expense: Expense) => {
     setExpenseToEdit(expense);
+    setModalDefaultType(expense.type === 'refund' ? 'refund' : 'expense');
     setIsAddModalOpen(true);
   };
 
@@ -57,16 +60,16 @@ const MainDashboard: React.FC = () => {
         <section aria-label="Historial de movimientos y transacciones">
           <TransactionHistory
             onEditExpense={handleEditExpense}
-            onOpenAddModal={handleOpenAdd}
+            onOpenAddModal={() => handleOpenAdd('expense')}
           />
         </section>
       </main>
 
       {/* Mobile Floating Action Button (FAB) */}
       <button
-        onClick={handleOpenAdd}
+        onClick={() => handleOpenAdd('expense')}
         className="mobile-fab animate-slide-up"
-        aria-label="Añadir nuevo gasto"
+        aria-label="Añadir nuevo movimiento"
       >
         <span className="fab-icon-wrapper">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -74,7 +77,7 @@ const MainDashboard: React.FC = () => {
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
         </span>
-        <span className="fab-text">Nuevo Gasto</span>
+        <span className="fab-text">Nuevo Movimiento</span>
       </button>
 
       {/* Modals */}
@@ -82,6 +85,7 @@ const MainDashboard: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={handleCloseAddModal}
         expenseToEdit={expenseToEdit}
+        defaultType={modalDefaultType}
       />
 
       <BudgetModal

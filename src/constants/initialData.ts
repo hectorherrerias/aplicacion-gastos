@@ -14,13 +14,14 @@ export const generateSampleExpenses = (): Expense[] => {
   };
 
   const sampleList: Array<Omit<Expense, 'id' | 'createdAt'>> = [
-    // Current Month expenses
+    // Current Month expenses & refunds
     {
       amount: 750.00,
       date: formatDate(currentYear, currentMonth, 1),
       categoryId: 'vivienda',
       description: 'Alquiler mensual vivienda',
       paymentMethod: 'transferencia',
+      type: 'expense',
     },
     {
       amount: 62.40,
@@ -28,6 +29,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'vivienda',
       description: 'Factura de luz y electricidad',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 124.50,
@@ -35,6 +37,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'alimentacion',
       description: 'Compra quincenal en Mercadona',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 45.00,
@@ -42,6 +45,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'transporte',
       description: 'Abono transporte público mensual',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 32.80,
@@ -49,6 +53,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'ocio',
       description: 'Cena con amigos en restaurante',
       paymentMethod: 'bizum',
+      type: 'expense',
     },
     {
       amount: 89.90,
@@ -56,6 +61,16 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'alimentacion',
       description: 'Compra semanal fruta y frescos',
       paymentMethod: 'tarjeta',
+      type: 'expense',
+    },
+    // Refund sample 1
+    {
+      amount: 42.50,
+      date: formatDate(currentYear, currentMonth, 12),
+      categoryId: 'otros',
+      description: 'Devolución de compra en Amazon (artículo defectuoso)',
+      paymentMethod: 'tarjeta',
+      type: 'refund',
     },
     {
       amount: 55.00,
@@ -63,6 +78,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'transporte',
       description: 'Llenado depósito gasolina',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 17.99,
@@ -70,6 +86,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'ocio',
       description: 'Suscripción Netflix & Spotify',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 28.50,
@@ -77,6 +94,16 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'salud',
       description: 'Farmacia y vitaminas',
       paymentMethod: 'tarjeta',
+      type: 'expense',
+    },
+    // Refund sample 2
+    {
+      amount: 18.00,
+      date: formatDate(currentYear, currentMonth, 19),
+      categoryId: 'ocio',
+      description: 'Bizum devolución parte cena con amigos',
+      paymentMethod: 'bizum',
+      type: 'refund',
     },
     {
       amount: 49.00,
@@ -84,6 +111,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'educacion',
       description: 'Curso online de desarrollo frontend',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 112.30,
@@ -91,6 +119,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'alimentacion',
       description: 'Compra supermercado Carrefour',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 39.95,
@@ -98,6 +127,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'otros',
       description: 'Pack organización para el hogar',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
     {
       amount: 18.50,
@@ -105,10 +135,11 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'ocio',
       description: 'Entradas de cine y palomitas',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     },
   ];
 
-  // Also add some expenses for previous months of this year so the yearly chart looks complete and realistic
+  // Also add some expenses and occasional refunds for other months of this year
   for (let m = 0; m < 12; m++) {
     if (m === currentMonth) continue; // already added above
     const isPastMonth = m < currentMonth;
@@ -120,6 +151,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'vivienda',
       description: 'Alquiler mensual vivienda',
       paymentMethod: 'transferencia',
+      type: 'expense',
     });
     sampleList.push({
       amount: Number((320 * factor).toFixed(2)),
@@ -127,6 +159,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'alimentacion',
       description: 'Supermercado y alimentación mensual',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     });
     sampleList.push({
       amount: Number((95 * factor).toFixed(2)),
@@ -134,6 +167,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'transporte',
       description: 'Combustible y desplazamientos',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     });
     sampleList.push({
       amount: Number((130 * factor).toFixed(2)),
@@ -141,6 +175,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'ocio',
       description: 'Actividades de fin de semana y cenas',
       paymentMethod: 'bizum',
+      type: 'expense',
     });
     sampleList.push({
       amount: Number((65 * factor).toFixed(2)),
@@ -148,6 +183,7 @@ export const generateSampleExpenses = (): Expense[] => {
       categoryId: 'vivienda',
       description: 'Suministros del hogar',
       paymentMethod: 'tarjeta',
+      type: 'expense',
     });
     if (m % 2 === 0) {
       sampleList.push({
@@ -156,6 +192,18 @@ export const generateSampleExpenses = (): Expense[] => {
         categoryId: 'salud',
         description: 'Cuidado personal y farmacia',
         paymentMethod: 'tarjeta',
+        type: 'expense',
+      });
+    }
+    // Occasional refund in past months
+    if (m === 1 || m === 4 || m === 7 || m === 10) {
+      sampleList.push({
+        amount: Number((35 + (m * 4)).toFixed(2)),
+        date: formatDate(currentYear, m, 22),
+        categoryId: 'otros',
+        description: 'Devolución de artículo en tienda de ropa',
+        paymentMethod: 'tarjeta',
+        type: 'refund',
       });
     }
   }

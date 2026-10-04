@@ -2376,3 +2376,266 @@
   color: #34d399;
   border-color: rgba(16, 185, 129, 0.3);
 }
+
+/* ==========================================================================
+   Refunds / Devoluciones UI & Theme Additions
+   ========================================================================== */
+
+/* 1. Modal Segmented Type Switcher (Gasto vs Reembolso) */
+.type-toggle-container {
+  margin-bottom: 20px;
+}
+
+.type-segmented-control {
+  display: flex;
+  background: var(--bg-muted);
+  padding: 4px;
+  border-radius: 12px;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.type-segment-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.type-segment-btn:hover {
+  color: var(--text-primary);
+}
+
+.type-segment-btn.active-expense {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.type-segment-btn.active-refund {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 4px 14px -2px rgba(5, 150, 105, 0.4);
+}
+
+.amount-input-wrapper.refund-accent {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.btn-submit-refund {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 24px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px -4px rgba(16, 185, 129, 0.4);
+  transition: all var(--transition-fast);
+}
+
+.btn-submit-refund:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px -4px rgba(16, 185, 129, 0.5);
+}
+
+/* 2. KPI Cards Refund Sub-pills */
+.kpi-breakdown-subrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  margin-bottom: 8px;
+}
+
+.kpi-subpill {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.kpi-subpill-refund {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #059669;
+  background: #d1fae5;
+  border-color: #a7f3d0;
+}
+
+[data-theme="dark"] .kpi-subpill-refund {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.kpi-icon-teal {
+  background: #d1fae5;
+  color: #059669;
+}
+
+[data-theme="dark"] .kpi-icon-teal {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+/* 3. Category Breakdown Mini Refund Chip */
+.category-refund-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .category-refund-chip {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* 4. History Type Filter Row */
+.history-type-filter-row {
+  margin-top: 14px;
+  margin-bottom: 12px;
+}
+
+.type-pills-wrapper {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-card-subtle);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.type-filter-pill {
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 7px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.type-filter-pill:hover {
+  color: var(--text-primary);
+}
+
+.type-filter-pill.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+}
+
+.history-subtitle-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.history-stats-dot {
+  opacity: 0.4;
+}
+
+/* 5. Table Type Badges & Positive Amounts */
+.cell-type {
+  white-space: nowrap;
+}
+
+.type-badge-expense {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg-card-subtle);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.type-badge-refund {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #059669;
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+[data-theme="dark"] .type-badge-refund {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.amount-positive {
+  color: #059669;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+[data-theme="dark"] .amount-positive {
+  color: #34d399;
+}
+
+.transaction-row.row-refund {
+  background-color: rgba(16, 185, 129, 0.02);
+}
+
+.transaction-row.row-refund:hover {
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.mobile-transaction-card.card-refund {
+  border-left: 3px solid #10b981;
+}
+
+.text-emerald {
+  color: #059669 !important;
+}
+
+[data-theme="dark"] .text-emerald {
+  color: #34d399 !important;
+}

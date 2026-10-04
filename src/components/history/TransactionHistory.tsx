@@ -7,10 +7,12 @@ import {
   Inbox,
   Download,
   AlertTriangle,
+  RotateCcw,
+  TrendingDown,
 } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
 import { CATEGORIES, CATEGORY_MAP, MONTH_NAMES_ES } from '../../constants/categories';
-import type { Expense, SortField, SortOrder } from '../../types/expense';
+import type { Expense, SortField, SortOrder, TransactionTypeFilter } from '../../types/expense';
 import { formatCurrency, formatDateRelative, downloadCSV } from '../../utils/formatters';
 import { CategoryIcon } from '../ui/CategoryIcon';
 import { useToast } from '../ui/Toast';
@@ -41,7 +43,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   // Pagination / Page size
   const [displayCount, setDisplayCount] = useState<number>(15);
 
-  const totalFilteredAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalFilteredGrossExpenses = filteredExpenses
+    .filter((e) => e.type !== 'refund')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalFilteredRefunds = filteredExpenses
+    .filter((e) => e.type === 'refund')
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  const totalFilteredNet = Math.max(0, totalFilteredGrossExpenses - totalFilteredRefunds);
 
   const handleDeleteClick = (expense: Expense) => {
     setExpenseToDelete(expense);
@@ -50,12 +60,13 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
   const confirmDelete = async () => {
     if (!expenseToDelete) return;
     const target = expenseToDelete;
+    const isRefund = target.type === 'refund';
     setExpenseToDelete(null);
     const deleted = await deleteExpense(target.id);
     if (deleted) {
       showToast({
-        title: 'Gasto eliminado',
-        message: `${deleted.description} (${formatCurrency(deleted.amount, currency)})`,
+        title: isRefund ? 'Reembolso eliminado' : 'Gasto eliminado',
+        message: `${deleted.description} (${isRefund ? '+' : '-'}${formatCurrency(deleted.amount, currency)})`,
         type: 'info',
         duration: 6000,
         action: {
@@ -63,7 +74,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           onClick: async () => {
             await restoreExpense(deleted);
             showToast({
-              title: 'Gasto restaurado',
+              title: isRefund ? 'Reembolso restaurado' : 'Gasto restaurado',
               type: 'success',
             });
           },
@@ -95,13 +106,31 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
         <div className="history-title-row">
           <div>
             <h2 className="history-title">Historial de Movimientos</h2>
-            <p className="history-subtitle">
-              {filteredExpenses.length}{' '}
-              {filteredExpenses.length === 1 ? 'gasto registrado' : 'gastos registrados'} • Total:{' '}
-              <strong className="text-emerald tabular-nums">
-                {formatCurrency(totalFilteredAmount, currency)}
-              </strong>
-            </p>
+            <div className="history-subtitle-stats">
+              <span>
+                {filteredExpenses.length}{' '}
+                {filteredExpenses.length === 1 ? 'movimiento registrado' : 'movimientos registrados'}
+              </span>
+              <span className="history-stats-dot">•</span>
+              <span>
+                Gastos: <strong className="tabular-nums">{formatCurrency(totalFilteredGrossExpenses, currency)}</strong>
+              </span>
+              {totalFilteredRefunds > 0 && (
+                <>
+                  <span className="history-stats-dot">•</span>
+                  <span className="text-emerald">
+                    Devoluciones: <strong className="tabular-nums">+{formatCurrency(totalFilteredRefunds, currency)}</strong>
+                  </span>
+                </>
+              )}
+              <span className="history-stats-dot">•</span>
+              <span>
+                Neto:{' '}
+                <strong className="text-emerald tabular-nums">
+                  {formatCurrency(totalFilteredNet, currency)}
+                </strong>
+              </span>
+            </div>
           </div>
 
           {filteredExpenses.length > 0 && (
@@ -112,6 +141,28 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
           )}
         </div>
 
+        {/* Type Switcher Filter (Todos / Solo Gastos / Solo Reembolsos) */}
+        <div className="history-type-filter-row">
+          <div className="type-pills-wrapper">
+            {(
+              [
+                { key: 'all', label: 'Todos los Movimientos' },
+                { key: 'expense', label: '💸 Solo Gastos' },
+                { key: 'refund', label: '🔄 Solo Reembolsos' },
+              ] as Array<{ key: TransactionTypeFilter; label: string }>
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`type-filter-pill ${filters.selectedType === tab.key ? 'active' : ''}`}
+                onClick={() => updateFilter('selectedType', tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Search and Sort Toolbar */}
         <div className="history-toolbar">
           {/* Search bar */}
@@ -119,7 +170,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             <Search size={17} className="search-icon" />
             <input
               type="text"
-              placeholder="Buscar por descripción, categoría o importe..."
+              placeholder="Buscar por descripción, categoría, tipo o importe..."
               value={filters.searchQuery}
               onChange={(e) => updateFilter('searchQuery', e.target.value)}
               className="search-input"
@@ -162,7 +213,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             onClick={() => updateFilter('selectedCategory', 'all')}
             className={`filter-chip ${filters.selectedCategory === 'all' ? 'active' : ''}`}
           >
-            Todos ({filteredExpenses.length})
+            Todas las categorías ({filteredExpenses.length})
           </button>
 
           {CATEGORIES.map((cat) => {
@@ -194,11 +245,12 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
               <table className="transactions-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '130px' }}>Fecha</th>
-                    <th style={{ width: '180px' }}>Categoría</th>
-                    <th>Descripción / Comentario</th>
+                    <th style={{ width: '120px' }}>Fecha</th>
+                    <th style={{ width: '130px' }}>Tipo</th>
+                    <th style={{ width: '170px' }}>Categoría</th>
+                    <th>Descripción / Concepto</th>
                     <th style={{ width: '120px' }}>Método</th>
-                    <th style={{ width: '150px', textAlign: 'right' }}>Importe</th>
+                    <th style={{ width: '140px', textAlign: 'right' }}>Importe</th>
                     <th style={{ width: '100px', textAlign: 'center' }}>Acciones</th>
                   </tr>
                 </thead>
@@ -209,12 +261,28 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                       color: '#64748b',
                       bgColor: '#f1f5f9',
                     };
+                    const isRefund = expense.type === 'refund';
 
                     return (
-                      <tr key={expense.id} className="transaction-row">
+                      <tr key={expense.id} className={`transaction-row ${isRefund ? 'row-refund' : ''}`}>
                         {/* Date */}
                         <td className="cell-date">
                           <span className="date-badge">{formatDateRelative(expense.date)}</span>
+                        </td>
+
+                        {/* Type Badge */}
+                        <td className="cell-type">
+                          {isRefund ? (
+                            <span className="type-badge-refund" title="Reembolso o devolución recibida">
+                              <RotateCcw size={12} />
+                              <span>Reembolso</span>
+                            </span>
+                          ) : (
+                            <span className="type-badge-expense">
+                              <TrendingDown size={12} />
+                              <span>Gasto</span>
+                            </span>
+                          )}
                         </td>
 
                         {/* Category */}
@@ -255,9 +323,15 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
 
                         {/* Amount */}
                         <td className="cell-amount">
-                          <span className="amount-negative tabular-nums">
-                            - {formatCurrency(expense.amount, currency)}
-                          </span>
+                          {isRefund ? (
+                            <span className="amount-positive tabular-nums" title="Importe devuelto/reembolsado">
+                              + {formatCurrency(expense.amount, currency)}
+                            </span>
+                          ) : (
+                            <span className="amount-negative tabular-nums">
+                              - {formatCurrency(expense.amount, currency)}
+                            </span>
+                          )}
                         </td>
 
                         {/* Actions */}
@@ -266,7 +340,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                             <button
                               onClick={() => onEditExpense(expense)}
                               className="action-btn edit-btn"
-                              title="Editar gasto"
+                              title={isRefund ? 'Editar reembolso' : 'Editar gasto'}
                               aria-label="Editar"
                             >
                               <Edit2 size={15} />
@@ -274,7 +348,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                             <button
                               onClick={() => handleDeleteClick(expense)}
                               className="action-btn delete-btn"
-                              title="Eliminar gasto"
+                              title={isRefund ? 'Eliminar reembolso' : 'Eliminar gasto'}
                               aria-label="Eliminar"
                             >
                               <Trash2 size={15} />
@@ -296,32 +370,52 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                   color: '#64748b',
                   bgColor: '#f1f5f9',
                 };
+                const isRefund = expense.type === 'refund';
 
                 return (
-                  <div key={expense.id} className="mobile-transaction-card">
+                  <div key={expense.id} className={`mobile-transaction-card ${isRefund ? 'card-refund' : ''}`}>
                     <div className="mobile-card-left">
                       <div
                         className="mobile-cat-icon"
-                        style={{ backgroundColor: cat.bgColor, color: cat.color }}
+                        style={{
+                          backgroundColor: isRefund ? '#d1fae5' : cat.bgColor,
+                          color: isRefund ? '#059669' : cat.color,
+                        }}
                       >
-                        <CategoryIcon categoryId={expense.categoryId} size={18} />
+                        {isRefund ? (
+                          <RotateCcw size={18} />
+                        ) : (
+                          <CategoryIcon categoryId={expense.categoryId} size={18} />
+                        )}
                       </div>
                       <div className="mobile-card-details">
                         <span className="mobile-desc">{expense.description}</span>
                         <div className="mobile-meta">
                           <span className="mobile-date">{formatDateRelative(expense.date)}</span>
                           <span className="mobile-dot">•</span>
-                          <span className="mobile-cat-name" style={{ color: cat.color }}>
-                            {cat.name}
-                          </span>
+                          {isRefund ? (
+                            <span className="mobile-cat-name text-emerald">
+                              Reembolso ({cat.name})
+                            </span>
+                          ) : (
+                            <span className="mobile-cat-name" style={{ color: cat.color }}>
+                              {cat.name}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     <div className="mobile-card-right">
-                      <span className="mobile-amount tabular-nums">
-                        - {formatCurrency(expense.amount, currency)}
-                      </span>
+                      {isRefund ? (
+                        <span className="mobile-amount amount-positive tabular-nums">
+                          + {formatCurrency(expense.amount, currency)}
+                        </span>
+                      ) : (
+                        <span className="mobile-amount tabular-nums">
+                          - {formatCurrency(expense.amount, currency)}
+                        </span>
+                      )}
                       <div className="mobile-actions">
                         <button
                           onClick={() => onEditExpense(expense)}
@@ -361,14 +455,20 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             <div className="empty-state-icon">
               <Inbox size={42} color="#94a3b8" />
             </div>
-            <h3 className="empty-title">No hay gastos que coincidan</h3>
+            <h3 className="empty-title">
+              {filters.selectedType === 'refund'
+                ? 'No hay reembolsos que coincidan'
+                : filters.selectedType === 'expense'
+                ? 'No hay gastos que coincidan'
+                : 'No hay movimientos que coincidan'}
+            </h3>
             <p className="empty-desc">
-              {filters.searchQuery || filters.selectedCategory !== 'all'
+              {filters.searchQuery || filters.selectedCategory !== 'all' || filters.selectedType !== 'all'
                 ? 'Prueba a ajustar los filtros o el término de búsqueda.'
-                : 'No tienes gastos registrados para este mes o año seleccionado.'}
+                : 'No tienes movimientos registrados para este mes o año seleccionado.'}
             </p>
             <button onClick={onOpenAddModal} className="btn-primary" style={{ marginTop: '16px' }}>
-              Registrar primer gasto
+              Registrar nuevo movimiento
             </button>
           </div>
         )}
@@ -384,11 +484,16 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
             <div className="confirm-icon-circle">
               <AlertTriangle size={26} color="#dc2626" />
             </div>
-            <h3 className="confirm-title">¿Eliminar este gasto?</h3>
+            <h3 className="confirm-title">
+              {expenseToDelete.type === 'refund'
+                ? '¿Eliminar este reembolso?'
+                : '¿Eliminar este gasto?'}
+            </h3>
             <p className="confirm-text">
               Estás a punto de eliminar <strong>"{expenseToDelete.description}"</strong> por un
               importe de{' '}
               <strong className="tabular-nums">
+                {expenseToDelete.type === 'refund' ? '+' : '-'}
                 {formatCurrency(expenseToDelete.amount, currency)}
               </strong>
               . Esta acción se puede deshacer inmediatamente desde la notificación.

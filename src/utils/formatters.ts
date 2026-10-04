@@ -62,17 +62,18 @@ export const formatDateForInput = (date: Date = new Date()): string => {
   return `${y}-${m}-${d}`;
 };
 
-export const downloadCSV = (expenses: Expense[], filename: string = 'gastos_personales.csv') => {
+export const downloadCSV = (expenses: Expense[], filename: string = 'movimientos_gastospro.csv') => {
   // CSV header with Excel BOM \uFEFF for proper UTF-8 accents
-  const headers = ['ID', 'Fecha', 'Categoría', 'Descripción', 'Método de Pago', 'Importe (€)'];
+  const headers = ['ID', 'Tipo', 'Fecha', 'Categoría', 'Descripción', 'Método de Pago', 'Importe (€)'];
   
   const rows = expenses.map((exp) => [
     `"${exp.id}"`,
+    `"${exp.type === 'refund' ? 'Reembolso / Devolución' : 'Gasto'}"`,
     `"${exp.date}"`,
     `"${CATEGORY_MAP[exp.categoryId]?.name || exp.categoryId}"`,
     `"${exp.description.replace(/"/g, '""')}"`,
     `"${exp.paymentMethod || 'tarjeta'}"`,
-    exp.amount.toFixed(2).replace('.', ','), // European format
+    `${exp.type === 'refund' ? '+' : '-'}${exp.amount.toFixed(2).replace('.', ',')}`, // European format with sign
   ]);
 
   const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
