@@ -47,8 +47,13 @@ settingsRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
     }
 
     const { key, value } = req.body;
-    if (!key || value === undefined) {
+    if (!key || value === undefined || value === null) {
       res.status(400).json({ error: 'Key y value son requeridos.' });
+      return;
+    }
+
+    if (typeof key !== 'string' || !/^[a-zA-Z0-9_.-]{1,64}$/.test(key) || String(value).length > 10000) {
+      res.status(400).json({ error: 'Ajuste no válido.' });
       return;
     }
 

@@ -3,18 +3,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: gastospro:latest
     container_name: gastospro-app
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "${HOST_PORT:-3001}:3000"
+    # Secrets and admin credentials live in .env (not committed). See .env.example
+    env_file:
+      - path: .env
+        required: false
     environment:
       - PORT=3000
       - NODE_ENV=production
-      - JWT_SECRET=gastospro_secure_jwt_token_secret_key_2026
-      - ADMIN_USER=admin
-      - ADMIN_PASSWORD=admin123
       - DATA_DIR=/app/data
       - DATABASE_FILE=/app/data/database.sqlite
+      - TZ=${TZ:-Europe/Madrid}
     volumes:
-      # Persistent SQLite storage in local folder
+      # Persistent SQLite storage + daily backups (./data/backups)
       - ./data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

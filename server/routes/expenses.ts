@@ -19,7 +19,16 @@ interface ExpenseRow {
   created_at: number;
 }
 
-const mapRowToExpense = (row: ExpenseRow) => ({
+const MAX_DESCRIPTION = 500;
+
+// Dates are stored as ISO 'YYYY-MM-DD' strings
+const isValidDate = (value: unknown): boolean => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+};
+
+const mapRowToExpense =(row: ExpenseRow) => ({
   id: row.id,
   amount: Number(row.amount),
   date: row.date,
@@ -73,6 +82,16 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
       return;
     }
 
+    if (!isValidDate(date)) {
+      res.status(400).json({ error: 'La fecha no es válida (formato esperado AAAA-MM-DD).' });
+      return;
+    }
+
+    if (typeof description !== 'string' || description.length > MAX_DESCRIPTION) {
+      res.status(400).json({ error: `La descripción no puede superar ${MAX_DESCRIPTION} caracteres.` });
+      return;
+    }
+
     const id = `exp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     const createdAt = Date.now();
     const method = paymentMethod || 'tarjeta';
@@ -123,6 +142,21 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
     }
 
     const parsedAmount = amount !== undefined ? Number(amount) : existing.amount;
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      res.status(400).json({ error: 'El importe debe ser un número positivo.' });
+      return;
+    }
+
+    if (date && !isValidDate(date)) {
+      res.status(400).json({ error: 'La fecha no es válida (formato esperado AAAA-MM-DD).' });
+      return;
+    }
+
+    if (description !== undefined && (typeof description !== 'string' || description.length > MAX_DESCRIPTION)) {
+      res.status(400).json({ error: `La descripción no puede superar ${MAX_DESCRIPTION} caracteres.` });
+      return;
+    }
+
     const newDate = date || existing.date;
     const newCategory = categoryId || existing.category_id;
     const newDesc = description !== undefined ? description.trim() : existing.description;
@@ -221,26 +255,43 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
+    // Only overwrite rows that belong to this user: an imported id that already
+    // exists for another account gets a fresh id instead of replacing that row
+    const ownerStmt = db.prepare('SELECT user_id FROM expenses WHERE id = ?');
+
     const insertMany = db.transaction((items: any[]) => {
+      let imported = 0;
       for (const exp of items) {
-        const id = exp.id || `exp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        if (!exp || typeof exp !== 'object') continue;
+        let id = exp.id || `exp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        const owner = ownerStmt.get(id) as { user_id: string } | undefined;
+        if (owner && owner.user_id !== userId) {
+          id = `exp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+        }
         const amount = Number(exp.amount) || 0;
         const date = exp.date;
         const categoryId = exp.categoryId || exp.category_id || 'otros';
-        const description = (exp.description || '').trim();
+        const description = String(exp.description || '').trim().slice(0, MAX_DESCRIPTION);
         const paymentMethod = exp.paymentMethod || exp.payment_method || 'tarjeta';
         const type = exp.type === 'refund' ? 'refund' : 'expense';
         const createdAt = exp.createdAt || exp.created_at || Date.now();
 
-        if (amount > 0 && date && description) {
+        if (amount > 0 && isValidDate(date) && description) {
           insertStmt.run(id, userId, amount, date, categoryId, description, paymentMethod, type, createdAt);
+          imported++;
         }
       }
+      return imported;
     });
 
-    insertMany(expenses);
+    const imported = insertMany(expenses);
+    const skipped = expenses.length - imported;
 
-    res.json({ message: `${expenses.length} movimientos importados en tu cuenta de SQLite.` });
+    res.json({
+      message: `${imported} movimientos importados en tu cuenta${skipped > 0 ? ` (${skipped} omitidos por datos no válidos)` : ''}.`,
+      imported,
+      skipped,
+    });
   } catch (error) {
     console.error('[Expenses API Error]', error);
     res.status(500).json({ error: 'Error al importar movimientos.' });

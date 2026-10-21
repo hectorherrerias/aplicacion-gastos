@@ -1,16 +1,28 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
-import { generateToken, authMiddleware, AuthenticatedRequest } from '../auth';
+import { generateToken, authMiddleware, AuthenticatedRequest, createRateLimiter } from '../auth';
 
 export const authRouter = Router();
 
+// Max 10 login attempts and 5 registrations per IP every 15 minutes
+const loginLimiter = createRateLimiter(10, 15 * 60 * 1000);
+const registerLimiter = createRateLimiter(5, 15 * 60 * 1000);
+
+// Set ALLOW_REGISTRATION=false to stop new accounts from being created
+const registrationAllowed = () => process.env.ALLOW_REGISTRATION !== 'false';
+
 // POST /api/auth/register - Create new user account
-authRouter.post('/register', (req: Request, res: Response): void => {
+authRouter.post('/register', registerLimiter, (req: Request, res: Response): void => {
   try {
+    if (!registrationAllowed()) {
+      res.status(403).json({ error: 'El registro de nuevas cuentas está desactivado.' });
+      return;
+    }
+
     const { username, password, name } = req.body;
 
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
       res.status(400).json({ error: 'Debes indicar un nombre de usuario y una contraseña.' });
       return;
     }
@@ -75,10 +87,10 @@ authRouter.post('/register', (req: Request, res: Response): void => {
 });
 
 // POST /api/auth/login - Authenticate existing user
-authRouter.post('/login', (req: Request, res: Response): void => {
-  const { username, password } = req.body;
+authRouter.post('/login', loginLimiter, (req: Request, res: Response): void => {
+  const { username, password } = req.body || {};
 
-  if (!username || !password) {
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     res.status(400).json({ error: 'Debes proporcionar usuario y contraseña.' });
     return;
   }

@@ -6,11 +6,14 @@
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
 
-# Copy package files and install dependencies
+# Instalar herramientas para compilar módulos nativos durante npm ci
+RUN apk add --no-cache python3 make g++
+
+# Instalar todas las dependencias
 COPY package*.json ./
 RUN npm ci
 
-# Copy source files and compile frontend
+# Copiar el código fuente y compilar el frontend (React/Vite)
 COPY . .
 RUN npm run build
 
@@ -18,36 +21,39 @@ RUN npm run build
 FROM node:22-alpine AS runner
 WORKDIR /app
 
-# Set production environment
+# Variables de entorno para producción
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATA_DIR=/app/data
 ENV DATABASE_FILE=/app/data/database.sqlite
 
-# Install runtime dependencies for better-sqlite3
+# Instalar herramientas temporales de compilación
 RUN apk add --no-cache python3 make g++
 
-# Copy package files and install production dependencies
+# Copiar manifiestos e instalar solo dependencias de producción + tsx para ejecución
 COPY package*.json ./
-RUN npm ci --omit=dev && npm rebuild better-sqlite3
+RUN npm ci --omit=dev && \
+    npm rebuild better-sqlite3 && \
+    npm install -g tsx && \
+    apk del python3 make g++
 
-# Copy backend TypeScript/JavaScript files and built frontend assets
+# Copiar archivos compilados del frontend y el código del backend
 COPY --from=frontend-builder /app/dist ./dist
 COPY server ./server
 COPY tsconfig*.json ./
 
-# Create directory for persistent SQLite database
+# Crear directorio de datos para SQLite y ajustar permisos del usuario node
 RUN mkdir -p /app/data && chown -R node:node /app
 
-# Run as non-root user for security
+# Ejecutar como usuario sin privilegios
 USER node
 
-# Expose server port
+# Exponer el puerto interno
 EXPOSE 3000
 
-# Healthcheck
+# Verificación de salud
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start the application using tsx or node
-CMD ["npx", "tsx", "server/index.ts"]
+# Arrancar la aplicación
+CMD ["tsx", "server/index.ts"]

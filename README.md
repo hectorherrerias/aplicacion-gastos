@@ -24,6 +24,14 @@ Aplicación web Full-Stack moderna, minimalista y profesional para el control in
 
 ---
 
+## 🛡️ Seguridad y Copias de Seguridad (v1.1)
+
+- **Secretos fuera del código**: `docker-compose.yml` lee `.env` (no se sube a git). Si `JWT_SECRET` está vacío, el servidor genera uno aleatorio y lo guarda en `data/.jwt_secret`.
+- **Límite de intentos**: máximo 10 intentos de login y 5 registros por IP cada 15 minutos.
+- **Registro opcional**: `ALLOW_REGISTRATION=false` impide crear cuentas nuevas desde la pantalla de acceso.
+- **Copias automáticas**: una copia diaria de SQLite en `data/backups/` (se conservan `BACKUP_KEEP_DAYS`, 14 por defecto).
+- **Validación** de fechas (`AAAA-MM-DD`), importes y descripciones; la importación JSON ya no puede sobrescribir movimientos de otra cuenta.
+
 ## 🐳 Despliegue con Docker & Docker Compose (Recomendado para Proxmox LXC)
 
 ### Paso 1: Clonar el repositorio
