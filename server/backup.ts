@@ -37,6 +37,18 @@ export const runBackup = async (): Promise<string | null> => {
   }
 };
 
+// Snapshot taken right before a destructive action (vaciar, importar): keeps the last 20
+export const runSafetyBackup = async (reason: string): Promise<string> => {
+  fs.mkdirSync(backupDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const target = path.join(backupDir, `antes-${reason}-${stamp}.sqlite`);
+  await db.backup(target);
+  const old = fs.readdirSync(backupDir).filter((f) => f.startsWith('antes-') && f.endsWith('.sqlite')).sort();
+  for (const file of old.slice(0, Math.max(0, old.length - 20))) fs.unlinkSync(path.join(backupDir, file));
+  console.log(`[Backup] Safety snapshot before "${reason}": ${target}`);
+  return target;
+};
+
 export const startBackupSchedule = () => {
   if (process.env.BACKUP_ENABLED === 'false') {
     console.log('[Backup] Automatic backups disabled (BACKUP_ENABLED=false)');

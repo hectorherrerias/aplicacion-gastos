@@ -304,6 +304,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                           <span className="desc-text" title={expense.description}>
                             {expense.description}
                           </span>
+                          {expense.id.startsWith('rec-') && <span className="recurring-badge" title="Apuntado automáticamente (gasto fijo)">fijo</span>}
                         </td>
 
                         {/* Payment Method */}
@@ -389,7 +390,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({
                         )}
                       </div>
                       <div className="mobile-card-details">
-                        <span className="mobile-desc">{expense.description}</span>
+                        <span className="mobile-desc">
+                          {expense.description}
+                          {expense.id.startsWith('rec-') && <span className="recurring-badge">fijo</span>}
+                        </span>
                         <div className="mobile-meta">
                           <span className="mobile-date">{formatDateRelative(expense.date)}</span>
                           <span className="mobile-dot">•</span>

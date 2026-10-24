@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { db } from '../db';
 import { authMiddleware, AuthenticatedRequest } from '../auth';
+import { runSafetyBackup } from '../backup';
 
 export const expensesRouter = Router();
 
@@ -71,7 +72,7 @@ expensesRouter.post('/', (req: AuthenticatedRequest, res: Response): void => {
 
     const { amount, date, categoryId, description, paymentMethod, type } = req.body;
 
-    const parsedAmount = Number(amount);
+    const parsedAmount = Math.round(Number(amount) * 100) / 100;
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       res.status(400).json({ error: 'El importe debe ser un número positivo.' });
       return;
@@ -141,7 +142,7 @@ expensesRouter.put('/:id', (req: AuthenticatedRequest, res: Response): void => {
       return;
     }
 
-    const parsedAmount = amount !== undefined ? Number(amount) : existing.amount;
+    const parsedAmount = amount !== undefined ? Math.round(Number(amount) * 100) / 100 : existing.amount;
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
       res.status(400).json({ error: 'El importe debe ser un número positivo.' });
       return;
@@ -219,24 +220,30 @@ expensesRouter.delete('/:id', (req: AuthenticatedRequest, res: Response): void =
 });
 
 // POST /api/expenses/clear - Clear all expenses of the logged-in user
-expensesRouter.post('/clear', (req: AuthenticatedRequest, res: Response): void => {
+// Requires { confirm: "BORRAR" } and always snapshots the database first
+expensesRouter.post('/clear', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ error: 'No autorizado' });
       return;
     }
+    if (req.body?.confirm !== 'BORRAR') {
+      res.status(400).json({ error: 'Para vaciar todo hay que confirmar escribiendo BORRAR.' });
+      return;
+    }
 
+    await runSafetyBackup('vaciar');
     db.prepare('DELETE FROM expenses WHERE user_id = ?').run(userId);
-    res.json({ message: 'Todos tus movimientos han sido eliminados de SQLite.' });
+    res.json({ message: 'Todos tus movimientos han sido eliminados (se guardó una copia antes).' });
   } catch (error) {
     console.error('[Expenses API Error]', error);
     res.status(500).json({ error: 'Error al vaciar la tabla de movimientos.' });
   }
 });
 
-// POST /api/expenses/import - Bulk import for the logged-in user
-expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void => {
+// POST /api/expenses/import - Bulk import (merge) for the logged-in user; snapshots the database first
+expensesRouter.post('/import', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
@@ -250,6 +257,7 @@ expensesRouter.post('/import', (req: AuthenticatedRequest, res: Response): void 
       return;
     }
 
+    await runSafetyBackup('importar');
     const insertStmt = db.prepare(`
       INSERT OR REPLACE INTO expenses (id, user_id, amount, date, category_id, description, payment_method, type, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)

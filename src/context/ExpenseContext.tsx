@@ -8,7 +8,6 @@ import type {
   CategoryId,
 } from '../types/expense';
 import { CATEGORIES, CATEGORY_MAP, MONTH_NAMES_ES } from '../constants/categories';
-import { generateSampleExpenses } from '../constants/initialData';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
 
@@ -22,11 +21,13 @@ interface ExpenseContextType {
   editExpense: (id: string, updated: Partial<Expense>) => Promise<void>;
   deleteExpense: (id: string) => Promise<Expense | undefined>;
   restoreExpense: (expense: Expense) => Promise<void>;
-  resetToSampleData: () => Promise<void>;
-  clearAllExpenses: () => Promise<void>;
-  importExpenses: (imported: Expense[]) => Promise<void>;
+  clearAllExpenses: (confirm: string) => Promise<void>;
+  importExpenses: (imported: Expense[]) => Promise<{ imported: number; skipped: number } | undefined>;
+  reloadData: () => Promise<void>;
   budgetMonthly: number;
   setBudgetMonthly: (amount: number) => Promise<void>;
+  categoryBudgets: Partial<Record<CategoryId, number>>;
+  setCategoryBudgets: (budgets: Partial<Record<CategoryId, number>>) => Promise<void>;
   currency: string;
   setCurrency: (c: string) => Promise<void>;
   kpiMetrics: KpiMetrics;
@@ -46,6 +47,7 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budgetMonthly, setBudgetMonthlyState] = useState<number>(2000);
+  const [categoryBudgets, setCategoryBudgetsState] = useState<Partial<Record<CategoryId, number>>>({});
   const [currency, setCurrencyState] = useState<string>('EUR');
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
 
@@ -77,6 +79,13 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (settings.currency) {
         setCurrencyState(settings.currency);
       }
+      if (settings.budget_categories) {
+        try {
+          setCategoryBudgetsState(JSON.parse(settings.budget_categories) || {});
+        } catch {
+          setCategoryBudgetsState({});
+        }
+      }
     } catch (error) {
       console.error('[ExpenseContext] Error loading data from SQLite backend:', error);
     } finally {
@@ -99,6 +108,13 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } catch (e) {
       console.error('Failed to save budget in SQLite', e);
     }
+  };
+
+  // Monthly limit per category (only categories with a value > 0 are stored)
+  const setCategoryBudgets = async (budgets: Partial<Record<CategoryId, number>>) => {
+    const clean = Object.fromEntries(Object.entries(budgets).filter(([, v]) => Number(v) > 0)) as Partial<Record<CategoryId, number>>;
+    setCategoryBudgetsState(clean);
+    await api.settings.set('budget_categories', JSON.stringify(clean));
   };
 
   const setCurrency = async (c: string) => {
@@ -175,46 +191,25 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const resetToSampleData = async () => {
-    const samples = generateSampleExpenses();
-    try {
-      await api.expenses.clearAll();
-      await api.expenses.importMany(samples);
-      setExpenses(samples);
-    } catch (error) {
-      console.error('Error loading sample data:', error);
-      setExpenses(samples);
-    }
-
-    setFilters((prev) => ({
-      ...prev,
-      selectedYear: currentYear,
-      selectedMonth: currentMonth,
-      selectedCategory: 'all',
-      selectedType: 'all',
-      searchQuery: '',
-    }));
-  };
-
-  const clearAllExpenses = async () => {
-    try {
-      await api.expenses.clearAll();
-    } catch (error) {
-      console.error('Error clearing movements in SQLite:', error);
-    }
+  // The server refuses unless confirm === 'BORRAR' and snapshots the database before deleting
+  const clearAllExpenses = async (confirm: string) => {
+    await api.expenses.clearAll(confirm);
     setExpenses([]);
   };
 
+  // Restoring a JSON backup merges it into the existing data (nothing is removed), then reloads
   const importExpenses = async (imported: Expense[]) => {
     if (Array.isArray(imported)) {
       try {
-        await api.expenses.importMany(imported);
-        setExpenses(imported);
+        const result = await api.expenses.importMany(imported);
+        await loadData();
+        return result as { imported: number; skipped: number };
       } catch (error) {
         console.error('Error importing movements:', error);
-        setExpenses(imported);
+        throw error;
       }
     }
+    return undefined;
   };
 
   // Available Years
@@ -485,11 +480,13 @@ export const ExpenseProvider: React.FC<{ children: React.ReactNode }> = ({ child
         editExpense,
         deleteExpense,
         restoreExpense,
-        resetToSampleData,
         clearAllExpenses,
         importExpenses,
+        reloadData: loadData,
         budgetMonthly,
         setBudgetMonthly,
+        categoryBudgets,
+        setCategoryBudgets,
         currency,
         setCurrency,
         kpiMetrics,

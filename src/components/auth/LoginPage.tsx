@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Wallet,
   Lock,
@@ -19,6 +19,15 @@ export const LoginPage: React.FC = () => {
   const { login, register } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [mode, setMode] = useState<'login' | 'register'>('login');
+  // Hidden until the server confirms that new accounts are allowed (ALLOW_REGISTRATION)
+  const [canRegister, setCanRegister] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/config')
+      .then((r) => r.json())
+      .then((c) => setCanRegister(Boolean(c.registration)))
+      .catch(() => setCanRegister(false));
+  }, []);
 
   // Form states
   const [name, setName] = useState('');
@@ -99,7 +108,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         {/* Mode Switch Tabs (Iniciar Sesión vs Crear Cuenta) */}
-        <div className="auth-tab-switch">
+        {canRegister && <div className="auth-tab-switch">
           <button
             type="button"
             onClick={() => switchMode('login')}
@@ -116,7 +125,7 @@ export const LoginPage: React.FC = () => {
             <UserPlus size={16} />
             <span>Crear Cuenta</span>
           </button>
-        </div>
+        </div>}
 
         {/* Error Alert */}
         {error && (
@@ -241,7 +250,7 @@ export const LoginPage: React.FC = () => {
             <span>Datos privados y aislados por usuario en SQLite</span>
           </div>
 
-          <div className="auth-toggle-hint">
+          {canRegister && <div className="auth-toggle-hint">
             {mode === 'login' ? (
               <span>
                 ¿Aún no tienes cuenta?{' '}
@@ -265,7 +274,7 @@ export const LoginPage: React.FC = () => {
                 </button>
               </span>
             )}
-          </div>
+          </div>}
         </div>
       </div>
     </div>

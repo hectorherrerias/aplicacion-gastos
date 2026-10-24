@@ -32,6 +32,18 @@ export interface Expense {
   createdAt: number;
 }
 
+// Monthly fixed expense (rent, subscriptions): the server books it automatically each month
+export interface RecurringExpense {
+  id: string;
+  amount: number;
+  categoryId: CategoryId;
+  description: string;
+  paymentMethod: PaymentMethod;
+  dayOfMonth: number;
+  active: boolean;
+  lastMonth: string; // last 'YYYY-MM' already booked
+}
+
 export interface MonthSummary {
   monthIndex: number; // 0-11
   monthName: string;

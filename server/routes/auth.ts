@@ -12,6 +12,11 @@ const registerLimiter = createRateLimiter(5, 15 * 60 * 1000);
 // Set ALLOW_REGISTRATION=false to stop new accounts from being created
 const registrationAllowed = () => process.env.ALLOW_REGISTRATION !== 'false';
 
+// GET /api/auth/config - Lets the login screen hide "Crear cuenta" when registration is disabled
+authRouter.get('/config', (_req: Request, res: Response): void => {
+  res.json({ registration: registrationAllowed() });
+});
+
 // POST /api/auth/register - Create new user account
 authRouter.post('/register', registerLimiter, (req: Request, res: Response): void => {
   try {

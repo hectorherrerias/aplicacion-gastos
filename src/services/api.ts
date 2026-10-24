@@ -1,4 +1,4 @@
-import type { Expense } from '../types/expense';
+import type { Expense, RecurringExpense } from '../types/expense';
 
 const API_BASE_URL = '/api';
 
@@ -103,10 +103,11 @@ export const api = {
       return data.deletedExpense as Expense;
     },
 
-    clearAll: async () => {
+    clearAll: async (confirm: string) => {
       const res = await fetch(`${API_BASE_URL}/expenses/clear`, {
         method: 'POST',
         headers: authHeaders(),
+        body: JSON.stringify({ confirm }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al vaciar gastos');
@@ -122,6 +123,32 @@ export const api = {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al importar gastos');
       return data;
+    },
+  },
+
+  recurring: {
+    list: async () => {
+      const res = await fetch(`${API_BASE_URL}/recurring`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al cargar gastos fijos');
+      return data.recurring as RecurringExpense[];
+    },
+    create: async (rule: Omit<RecurringExpense, 'id' | 'active' | 'lastMonth'> & { includeCurrent: boolean }) => {
+      const res = await fetch(`${API_BASE_URL}/recurring`, { method: 'POST', headers: authHeaders(), body: JSON.stringify(rule) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al guardar el gasto fijo');
+      return data as { recurring: RecurringExpense; created: number };
+    },
+    update: async (id: string, changes: Partial<RecurringExpense>) => {
+      const res = await fetch(`${API_BASE_URL}/recurring/${id}`, { method: 'PUT', headers: authHeaders(), body: JSON.stringify(changes) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al actualizar el gasto fijo');
+      return data as { recurring: RecurringExpense; created: number };
+    },
+    remove: async (id: string) => {
+      const res = await fetch(`${API_BASE_URL}/recurring/${id}`, { method: 'DELETE', headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error al borrar el gasto fijo');
     },
   },
 

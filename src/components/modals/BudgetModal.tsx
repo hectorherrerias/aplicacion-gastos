@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Target, X, Check } from 'lucide-react';
 import { useExpenseContext } from '../../context/ExpenseContext';
+import { CATEGORIES } from '../../constants/categories';
+import type { CategoryId } from '../../types/expense';
 import { formatCurrency } from '../../utils/formatters';
 import { useToast } from '../ui/Toast';
 
@@ -10,14 +12,22 @@ interface BudgetModalProps {
 }
 
 export const BudgetModal: React.FC<BudgetModalProps> = ({ isOpen, onClose }) => {
-  const { budgetMonthly, setBudgetMonthly, currency, kpiMetrics } = useExpenseContext();
+  const { budgetMonthly, setBudgetMonthly, categoryBudgets, setCategoryBudgets, currency, kpiMetrics } = useExpenseContext();
   const { showToast } = useToast();
 
   const [inputBudget, setInputBudget] = useState<string>(budgetMonthly.toString());
+  const [catInputs, setCatInputs] = useState<Record<string, string>>({});
+
+  // Refill the inputs with the saved values every time the modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    setInputBudget(budgetMonthly.toString());
+    setCatInputs(Object.fromEntries(CATEGORIES.map((c) => [c.id, categoryBudgets[c.id] ? String(categoryBudgets[c.id]) : ''])));
+  }, [isOpen, budgetMonthly, categoryBudgets]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsed = parseFloat(inputBudget.replace(',', '.'));
     if (isNaN(parsed) || parsed < 0) {
@@ -25,6 +35,14 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({ isOpen, onClose }) => 
     }
 
     setBudgetMonthly(parsed);
+    const cats = Object.fromEntries(
+      Object.entries(catInputs).map(([k, v]) => [k, parseFloat(String(v).replace(',', '.')) || 0])
+    ) as Partial<Record<CategoryId, number>>;
+    try {
+      await setCategoryBudgets(cats);
+    } catch {
+      showToast({ title: 'Error', message: 'No se pudieron guardar los límites por categoría.', type: 'error' });
+    }
     showToast({
       title: 'Presupuesto mensual actualizado',
       message: `Objetivo fijado en ${formatCurrency(parsed, currency)} / mes`,
@@ -127,6 +145,28 @@ export const BudgetModal: React.FC<BudgetModalProps> = ({ isOpen, onClose }) => 
                 {remaining >= 0 ? '+' : ''}
                 {formatCurrency(remaining, currency)}
               </span>
+            </div>
+          </div>
+
+          {/* Optional monthly limit per category */}
+          <div className="form-group">
+            <label className="form-label">Límite por categoría (opcional, al mes)</label>
+            <div className="category-budget-grid">
+              {CATEGORIES.map((c) => (
+                <label key={c.id} className="category-budget-item">
+                  <span className="category-budget-name">
+                    <span className="category-budget-dot" style={{ background: c.color }} />
+                    {c.name}
+                  </span>
+                  <input
+                    className="form-text-input tabular-nums"
+                    inputMode="decimal"
+                    placeholder="—"
+                    value={catInputs[c.id] ?? ''}
+                    onChange={(e) => setCatInputs((prev) => ({ ...prev, [c.id]: e.target.value }))}
+                  />
+                </label>
+              ))}
             </div>
           </div>
 

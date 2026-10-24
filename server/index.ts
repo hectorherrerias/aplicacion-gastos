@@ -10,10 +10,13 @@ import { authRouter } from './routes/auth';
 import { expensesRouter } from './routes/expenses';
 import { settingsRouter } from './routes/settings';
 import { startBackupSchedule } from './backup';
+import { recurringRouter } from './routes/recurring';
+import { startRecurringSchedule } from './recurring';
 
 // 1. Initialize SQLite Database
 initDatabase();
 startBackupSchedule();
+startRecurringSchedule();
 
 // 2. Create Express app
 const app = express();
@@ -44,6 +47,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/auth', authRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/recurring', recurringRouter);
 
 // Health check endpoint (also verifies the database answers)
 app.get('/api/health', (_req: Request, res: Response) => {

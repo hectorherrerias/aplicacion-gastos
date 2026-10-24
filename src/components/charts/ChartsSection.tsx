@@ -48,6 +48,7 @@ export const ChartsSection: React.FC = () => {
     updateFilter,
     currency,
     kpiMetrics,
+    categoryBudgets,
   } = useExpenseContext();
 
   const { theme } = useTheme();
@@ -291,6 +292,10 @@ export const ChartsSection: React.FC = () => {
               <div className="category-legend-list">
                 {categoryBreakdown.map((item) => {
                   if (item.total === 0 && item.totalRefunds === 0) return null;
+                  // Monthly limit for this category (only in month view)
+                  const limit = filters.selectedMonth !== -1 ? categoryBudgets[item.category.id] : undefined;
+                  const used = limit ? (item.total / limit) * 100 : 0;
+                  const limitColor = used > 100 ? '#ef4444' : used > 85 ? '#f59e0b' : item.category.color;
                   return (
                     <div
                       key={item.category.id}
@@ -338,8 +343,8 @@ export const ChartsSection: React.FC = () => {
                             <div
                               className="legend-mini-bar-fill"
                               style={{
-                                width: `${item.percentage}%`,
-                                backgroundColor: item.category.color,
+                                width: `${limit ? Math.min(used, 100) : item.percentage}%`,
+                                backgroundColor: limit ? limitColor : item.category.color,
                               }}
                             />
                           </div>
@@ -347,10 +352,12 @@ export const ChartsSection: React.FC = () => {
                       </div>
 
                       <div className="legend-row-right">
-                        <span className="legend-amount tabular-nums">
+                        <span className="legend-amount tabular-nums" style={limit && used > 100 ? { color: '#ef4444' } : undefined}>
                           {formatCurrency(item.total, currency)}
                         </span>
-                        <span className="legend-percentage">{item.percentage}%</span>
+                        <span className="legend-percentage">
+                          {limit ? `de ${formatCurrency(limit, currency)}` : `${item.percentage}%`}
+                        </span>
                       </div>
                     </div>
                   );

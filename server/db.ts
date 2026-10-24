@@ -82,6 +82,23 @@ export const initDatabase = () => {
     );
   `);
 
+  // 4. Recurring monthly expenses (alquiler, suscripciones...). last_month = last 'YYYY-MM' already generated
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS recurring (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      category_id TEXT NOT NULL,
+      description TEXT NOT NULL,
+      payment_method TEXT DEFAULT 'tarjeta',
+      day_of_month INTEGER NOT NULL,
+      active INTEGER NOT NULL DEFAULT 1,
+      last_month TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_recurring_user ON recurring(user_id);
+  `);
+
   // Seed default administrator if users table is empty
   const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
   if (userCount.count === 0) {

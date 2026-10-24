@@ -8,7 +8,8 @@ import {
   Download,
   Database,
   Sliders,
-  Check,
+  Upload,
+  Repeat,
   ChevronDown,
   Trash2,
   LogOut,
@@ -26,16 +27,17 @@ import { useToast } from '../ui/Toast';
 interface HeaderProps {
   onOpenAddModal: (defaultType?: 'expense' | 'refund') => void;
   onOpenBudgetModal: () => void;
+  onOpenRecurringModal: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModal }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModal, onOpenRecurringModal }) => {
   const {
     filters,
     updateFilter,
     availableYears,
     expenses,
-    resetToSampleData,
     clearAllExpenses,
+    importExpenses,
     currency,
     setCurrency,
   } = useExpenseContext();
@@ -118,26 +120,41 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
     setShowOptionsDropdown(false);
   };
 
-  const handleResetDemo = () => {
-    resetToSampleData();
-    showToast({
-      title: 'Datos de muestra cargados',
-      message: 'Se han cargado gastos y reembolsos de demostración para el año.',
-      type: 'info',
-    });
+  // Restore a JSON backup downloaded with "Copia de seguridad": merges, never deletes existing data
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+  const handleRestoreFile = async (file: File) => {
+    try {
+      const parsed = JSON.parse(await file.text());
+      const list = Array.isArray(parsed) ? parsed : parsed?.expenses;
+      if (!Array.isArray(list)) throw new Error('El archivo no parece una copia de GastosPro.');
+      const result = await importExpenses(list);
+      showToast({
+        title: 'Copia restaurada',
+        message: `${result?.imported ?? 0} movimientos recuperados${result?.skipped ? ` (${result.skipped} no válidos)` : ''}. No se ha borrado nada.`,
+        type: 'success',
+      });
+    } catch (err: any) {
+      showToast({ title: 'No se pudo restaurar', message: err?.message || 'Archivo no válido.', type: 'error' });
+    }
     setShowOptionsDropdown(false);
   };
 
-  const handleClearAll = () => {
-    if (window.confirm('¿Estás seguro de que deseas vaciar todos los gastos y reembolsos?')) {
-      clearAllExpenses();
+  const handleClearAll = async () => {
+    const typed = window.prompt(
+      `Esto borra tus ${expenses.length} movimientos. Se guardará una copia en el servidor antes.\n\nEscribe BORRAR para confirmar:`
+    );
+    if (typed?.trim().toUpperCase() !== 'BORRAR') return;
+    try {
+      await clearAllExpenses('BORRAR');
       showToast({
         title: 'Movimientos eliminados',
-        message: 'La aplicación ha quedado totalmente vacía.',
+        message: 'Se guardó una copia de seguridad antes de vaciar.',
         type: 'info',
       });
-      setShowOptionsDropdown(false);
+    } catch (err: any) {
+      showToast({ title: 'No se ha borrado nada', message: err?.message || 'Error al vaciar.', type: 'error' });
     }
+    setShowOptionsDropdown(false);
   };
 
   const isCurrentMonthActive =
@@ -315,9 +332,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenAddModal, onOpenBudgetModa
                     <span>Copia de seguridad (JSON)</span>
                   </button>
 
-                  <button onClick={handleResetDemo} className="dropdown-item">
-                    <Check size={16} className="item-icon" />
-                    <span>Cargar Datos de Ejemplo</span>
+                  <button onClick={() => restoreInputRef.current?.click()} className="dropdown-item">
+                    <Upload size={16} className="item-icon" />
+                    <span>Restaurar copia (JSON)</span>
+                  </button>
+                  <input
+                    ref={restoreInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    hidden
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (f) void handleRestoreFile(f);
+                    }}
+                  />
+
+                  <button
+                    onClick={() => {
+                      onOpenRecurringModal();
+                      setShowOptionsDropdown(false);
+                    }}
+                    className="dropdown-item"
+                  >
+                    <Repeat size={16} className="item-icon" />
+                    <span>Gastos fijos mensuales</span>
                   </button>
 
                   <button onClick={handleClearAll} className="dropdown-item" style={{ color: '#ef4444' }}>

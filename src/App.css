@@ -2639,3 +2639,82 @@
 [data-theme="dark"] .text-emerald {
   color: #34d399 !important;
 }
+
+/* ==========================================================================
+   Revisión 2026-10: gastos fijos, límites por categoría y ajustes de móvil
+   ========================================================================== */
+.modal-dialog-confirm { max-height: 92vh; overflow-y: auto; }
+
+.recurring-modal { max-width: 560px; }
+.recurring-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.recurring-empty { color: var(--text-muted); font-size: 0.9rem; text-align: center; padding: 14px 0; margin: 0; }
+.recurring-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: var(--bg-card-subtle); border: 1px solid var(--border-color); border-radius: var(--radius-md);
+}
+.recurring-row.paused { opacity: 0.55; }
+.recurring-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.recurring-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.recurring-desc { font-weight: 700; color: var(--text-primary); font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recurring-meta { color: var(--text-muted); font-size: 0.76rem; }
+.recurring-amount { font-weight: 800; color: var(--text-primary); white-space: nowrap; }
+.recurring-icon-btn {
+  display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; cursor: pointer;
+  border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-secondary);
+}
+.recurring-icon-btn:hover { background: var(--bg-hover); }
+.recurring-icon-btn.danger { color: var(--danger-text); }
+.recurring-total {
+  display: flex; justify-content: space-between; align-items: center; padding: 8px 4px 0;
+  font-size: 0.88rem; color: var(--text-muted);
+}
+.recurring-total strong { color: var(--text-primary); font-size: 1rem; }
+.recurring-form { border-top: 1px solid var(--border-color); padding-top: 16px; }
+.recurring-form-title { margin: 0 0 12px; font-size: 0.95rem; color: var(--text-primary); }
+.recurring-check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; color: var(--text-secondary); margin: 4px 0 8px; cursor: pointer; }
+.recurring-check input { margin-top: 3px; accent-color: #059669; }
+
+.category-budget-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.category-budget-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 6px 6px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card-subtle);
+}
+.category-budget-name { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); min-width: 0; }
+.category-budget-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.category-budget-item .form-text-input { width: 84px; padding: 6px 8px; text-align: right; }
+
+@media (max-width: 640px) {
+  /* La lista de categorías se ve entera: sin un desplazamiento dentro de otro */
+  .category-legend-list { max-height: none; overflow: visible; padding-right: 0; }
+}
+
+@media (max-width: 480px) {
+  /* Tarjetas de resumen a una columna: en dos quedaban textos cortados y huecos */
+  .kpi-grid { grid-template-columns: minmax(0, 1fr); }
+  .card-primary-highlight { grid-column: auto; }
+  .category-budget-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.recurring-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: var(--radius-full); vertical-align: 1px;
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+  background: rgba(124, 58, 237, 0.12); color: #7c3aed;
+}
+
+/* Tablet (iPad en vertical): el menú de ajustes se salía por la izquierda; se muestra centrado como en el móvil */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .dropdown-wrapper {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .dropdown-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);
+  }
+  .dropdown-menu {
+    position: relative; top: auto; right: auto; left: auto; z-index: 1001;
+    width: 100%; max-width: 380px; max-height: 85vh; overflow-y: auto;
+    border-radius: 20px; padding: 16px 14px; box-shadow: var(--shadow-modal);
+    border: 1px solid var(--border-color); background: var(--bg-card);
+  }
+  .dropdown-close-btn { display: flex; }
+}

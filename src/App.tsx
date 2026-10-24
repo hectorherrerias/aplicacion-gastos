@@ -9,6 +9,7 @@ import { ChartsSection } from './components/charts/ChartsSection';
 import { TransactionHistory } from './components/history/TransactionHistory';
 import { ExpenseFormModal } from './components/forms/ExpenseFormModal';
 import { BudgetModal } from './components/modals/BudgetModal';
+import { RecurringModal } from './components/modals/RecurringModal';
 import { LoginPage } from './components/auth/LoginPage';
 import type { Expense, TransactionType } from './types/expense';
 import './App.css';
@@ -16,6 +17,7 @@ import './App.css';
 const MainDashboard: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [modalDefaultType, setModalDefaultType] = useState<TransactionType>('expense');
 
@@ -42,6 +44,7 @@ const MainDashboard: React.FC = () => {
       <Header
         onOpenAddModal={handleOpenAdd}
         onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+        onOpenRecurringModal={() => setIsRecurringModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -91,6 +94,11 @@ const MainDashboard: React.FC = () => {
       <BudgetModal
         isOpen={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}
+      />
+
+      <RecurringModal
+        isOpen={isRecurringModalOpen}
+        onClose={() => setIsRecurringModalOpen(false)}
       />
     </div>
   );
