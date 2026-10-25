@@ -12,6 +12,7 @@ import { settingsRouter } from './routes/settings';
 import { startBackupSchedule } from './backup';
 import { recurringRouter } from './routes/recurring';
 import { startRecurringSchedule } from './recurring';
+import { internalRouter } from './routes/internal';
 
 // 1. Initialize SQLite Database
 initDatabase();
@@ -48,6 +49,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/recurring', recurringRouter);
+app.use('/api/internal', internalRouter);
 
 // Health check endpoint (also verifies the database answers)
 app.get('/api/health', (_req: Request, res: Response) => {
