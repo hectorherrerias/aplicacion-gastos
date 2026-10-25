@@ -152,3 +152,35 @@ internalRouter.delete('/expenses/:id', (req: Request, res: Response) => {
   db.prepare('DELETE FROM expenses WHERE id = ?').run(row.id);
   res.status(204).end();
 });
+
+// Totales entre dos fechas (resumen semanal del briefing de los domingos)
+internalRouter.get('/summary', (req: Request, res: Response) => {
+  const userId = usuario(req, res);
+  if (!userId) return;
+  const fecha = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : null);
+  const desde = fecha(req.query.from);
+  const hasta = fecha(req.query.to);
+  if (!desde || !hasta) {
+    res.status(400).json({ error: 'Fechas no válidas (from y to, AAAA-MM-DD).' });
+    return;
+  }
+  const filas = db
+    .prepare(
+      `SELECT category_id AS category, type, ROUND(SUM(amount), 2) AS total, COUNT(*) AS n
+         FROM expenses WHERE user_id = ? AND date >= ? AND date <= ?
+        GROUP BY category_id, type`
+    )
+    .all(userId, desde, hasta) as { category: string; type: string; total: number; n: number }[];
+  const porCategoria: Record<string, number> = {};
+  let gastos = 0;
+  let devoluciones = 0;
+  let movimientos = 0;
+  for (const f of filas) {
+    const signo = f.type === 'refund' ? -1 : 1;
+    porCategoria[f.category] = Math.round(((porCategoria[f.category] || 0) + signo * f.total) * 100) / 100;
+    if (f.type === 'refund') devoluciones += f.total; else gastos += f.total;
+    movimientos += f.n;
+  }
+  res.json({ from: desde, to: hasta, expenses: Math.round(gastos * 100) / 100, refunds: Math.round(devoluciones * 100) / 100,
+    net: Math.round((gastos - devoluciones) * 100) / 100, count: movimientos, by_category: porCategoria });
+});
